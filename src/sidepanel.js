@@ -1,6 +1,6 @@
 import { getSettings } from "./config.js";
 import { streamChat } from "./llm.js";
-import { webSearch, formatSearchResults } from "./search.js";
+import { webSearch, formatSearchResults, buildSourcesMarkdown } from "./search.js";
 import { buildInitialMessages } from "./prompt.js";
 import { renderMarkdown } from "./markdown.js";
 
@@ -121,10 +121,11 @@ async function runStream(query) {
 
     // 联网：先借智谱搜索拿资料，作为临时上下文喂给主模型（DeepSeek）。
     let extraContext = "";
+    let results = [];
     if (useSearch) {
       bubble.textContent = "🔍 联网检索中…";
       try {
-        const results = await webSearch(query, settings);
+        results = await webSearch(query, settings);
         extraContext = formatSearchResults(results);
         bubble.textContent = "✍️ 结合资料生成中…";
       } catch (e) {
@@ -145,6 +146,11 @@ async function runStream(query) {
         $messages.scrollTop = $messages.scrollHeight;
       },
     });
+    // 联网时把「来源」清单附在答案末尾（模型正文用 [n] 标注，这里对应编号给出链接）
+    if (results.length && acc) {
+      acc += buildSourcesMarkdown(results);
+      bubble.innerHTML = renderMarkdown(acc);
+    }
     bubble.classList.remove("ic-cursor");
     if (tabAtStart === currentTabId) {
       conversation.push({ role: "assistant", content: acc });
