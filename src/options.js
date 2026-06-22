@@ -1,5 +1,7 @@
-import { PROVIDERS, getSettings, saveSettings, DEFAULT_SETTINGS } from "./config.js";
+import { PROVIDERS, getSettings, saveSettings, resolveProvider } from "./config.js";
 import { streamChat } from "./llm.js";
+
+let cachedSettings = null; // 保存各家 providerConfigs，供切换时带出
 
 const el = (id) => document.getElementById(id);
 
@@ -20,12 +22,13 @@ for (const [key, p] of Object.entries(PROVIDERS)) {
   opt.textContent = p.label;
   el("provider").appendChild(opt);
 }
+// 切换服务商：带出该家已存配置（没存过则用预设默认），不丢已填的 key
 el("provider").addEventListener("change", (e) => {
-  const p = PROVIDERS[e.target.value];
-  if (p && e.target.value !== "custom") {
-    el("baseURL").value = p.baseURL;
-    el("model").value = p.defaultModel;
-  }
+  const cfg = resolveProvider(cachedSettings || { providerConfigs: {} }, e.target.value);
+  el("baseURL").value = cfg.baseURL;
+  el("model").value = cfg.model;
+  el("apiKey").value = cfg.apiKey;
+  el("test-model-status").textContent = "";
 });
 
 // ---- 搜索引擎单选项：填了 key 才能选 ----
@@ -94,6 +97,7 @@ el("test-model").addEventListener("click", async () => {
 
 async function load() {
   const s = await getSettings();
+  cachedSettings = s;
   el("provider").value = s.provider;
   el("baseURL").value = s.baseURL;
   el("model").value = s.model;
@@ -113,20 +117,28 @@ async function load() {
 
 el("save").addEventListener("click", async () => {
   const checked = document.querySelector('input[name="searchProvider"]:checked');
+  const p = el("provider").value;
+  const preset = PROVIDERS[p] || {};
   await saveSettings({
-    provider: el("provider").value,
-    baseURL: el("baseURL").value.trim() || DEFAULT_SETTINGS.baseURL,
-    model: el("model").value.trim() || DEFAULT_SETTINGS.model,
-    apiKey: el("apiKey").value.trim(),
+    provider: p,
+    // 只更新当前这家的配置，其它家的 key 原样保留
+    providerConfigs: {
+      [p]: {
+        baseURL: el("baseURL").value.trim() || preset.baseURL || "",
+        model: el("model").value.trim() || preset.defaultModel || "",
+        apiKey: el("apiKey").value.trim(),
+      },
+    },
     targetLang: el("targetLang").value.trim() || "中文",
-    maxArticleChars: parseInt(el("maxArticleChars").value, 10) || DEFAULT_SETTINGS.maxArticleChars,
+    maxArticleChars: parseInt(el("maxArticleChars").value, 10) || 24000,
     useMock: el("useMock").checked,
     searchEnabled: el("searchEnabled").checked,
-    searchProvider: checked ? checked.value : DEFAULT_SETTINGS.searchProvider,
+    searchProvider: checked ? checked.value : "serper",
     serperApiKey: el("serperApiKey").value.trim(),
     serpapiApiKey: el("serpapiApiKey").value.trim(),
     tavilyApiKey: el("tavilyApiKey").value.trim(),
   });
+  cachedSettings = await getSettings(); // 刷新缓存，供后续切换带出
   el("status").textContent = "已保存 ✓";
   setTimeout(() => (el("status").textContent = ""), 2000);
 });

@@ -23,9 +23,9 @@ export const PROVIDERS = {
 
 export const DEFAULT_SETTINGS = {
   provider: "deepseek",
-  baseURL: PROVIDERS.deepseek.baseURL,
-  model: "deepseek-v4-pro",
-  apiKey: "",
+  // 每家服务商各存各的配置：{ [provider]: { baseURL, model, apiKey } }
+  // 切换服务商不丢 key，无需重填。
+  providerConfigs: {},
   targetLang: "中文",
   // 全文注入上限（字符数）。超出则截断，MVP 简单策略。
   maxArticleChars: 24000,
@@ -41,14 +41,60 @@ export const DEFAULT_SETTINGS = {
   tavilyApiKey: "", // tavily.com 的 key
 };
 
+async function getRaw() {
+  return (await chrome.storage.local.get("settings")).settings || {};
+}
+
+// 取某家服务商的已存配置（含预设兜底）。
+export function resolveProvider(settings, provider) {
+  const cfg = (settings.providerConfigs || {})[provider] || {};
+  const preset = PROVIDERS[provider] || {};
+  return {
+    baseURL: cfg.baseURL || preset.baseURL || "",
+    model: cfg.model || preset.defaultModel || "",
+    apiKey: cfg.apiKey || "",
+  };
+}
+
 export async function getSettings() {
-  const stored = await chrome.storage.local.get("settings");
-  return { ...DEFAULT_SETTINGS, ...(stored.settings || {}) };
+  const stored = await getRaw();
+  const s = { ...DEFAULT_SETTINGS, ...stored };
+  s.providerConfigs = { ...(stored.providerConfigs || {}) };
+  // 迁移旧版扁平字段(baseURL/model/apiKey)到当前 provider 的分项配置
+  if ((stored.apiKey || stored.baseURL || stored.model) && !s.providerConfigs[s.provider]) {
+    s.providerConfigs[s.provider] = {
+      baseURL: stored.baseURL || "",
+      model: stored.model || "",
+      apiKey: stored.apiKey || "",
+    };
+  }
+  // 派生出当前激活 provider 的 baseURL/model/apiKey，供 llm/sidepanel 直接用
+  const active = resolveProvider(s, s.provider);
+  s.baseURL = active.baseURL;
+  s.model = active.model;
+  s.apiKey = active.apiKey;
+  return s;
 }
 
 export async function saveSettings(patch) {
-  const current = await getSettings();
-  const next = { ...current, ...patch };
+  const cur = await getRaw();
+  const next = { ...cur, ...patch };
+  next.providerConfigs = { ...(cur.providerConfigs || {}), ...(patch.providerConfigs || {}) };
+  // 删扁平字段前，先把旧版扁平配置迁进它所属 provider，避免丢失
+  if (cur.apiKey || cur.baseURL || cur.model) {
+    const lp = cur.provider || "deepseek";
+    if (!next.providerConfigs[lp]) {
+      next.providerConfigs[lp] = {
+        baseURL: cur.baseURL || "",
+        model: cur.model || "",
+        apiKey: cur.apiKey || "",
+      };
+    }
+  }
+  // 不持久化派生字段，避免与分项配置冲突
+  delete next.baseURL;
+  delete next.model;
+  delete next.apiKey;
   await chrome.storage.local.set({ settings: next });
   return next;
 }
