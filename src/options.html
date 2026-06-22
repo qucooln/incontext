@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>InContext 设置</title>
+    <style>
+      body { font-family: -apple-system, "PingFang SC", sans-serif; max-width: 520px; margin: 40px auto; padding: 0 20px; color: #1f2937; }
+      h1 { font-size: 20px; }
+      .field { margin-bottom: 16px; }
+      label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 14px; }
+      input, select { width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
+      .hint { font-size: 12px; color: #6b7280; margin-top: 4px; }
+      .row { display: flex; align-items: center; gap: 8px; }
+      .row input[type="checkbox"] { width: auto; }
+      button { background: #2563eb; color: #fff; border: none; border-radius: 6px; padding: 10px 18px; font-size: 14px; cursor: pointer; }
+      button:hover { background: #1d4ed8; }
+      #status { margin-left: 12px; color: #16a34a; font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <h1>InContext 设置</h1>
+    <p class="hint">本插件走 OpenAI 兼容协议，使用你自己的 API Key（仅存于本地浏览器，不上传任何第三方）。</p>
+
+    <div class="field">
+      <label for="provider">模型服务商</label>
+      <select id="provider"></select>
+    </div>
+    <div class="field">
+      <label for="baseURL">Base URL</label>
+      <input id="baseURL" type="text" placeholder="https://api.deepseek.com/v1" />
+    </div>
+    <div class="field">
+      <label for="model">模型</label>
+      <input id="model" type="text" placeholder="deepseek-chat" />
+    </div>
+    <div class="field">
+      <label for="apiKey">API Key</label>
+      <input id="apiKey" type="password" placeholder="sk-..." />
+    </div>
+    <div class="field">
+      <label for="targetLang">解释输出语言</label>
+      <input id="targetLang" type="text" placeholder="中文 / English / 日本語 …" />
+    </div>
+    <div class="field">
+      <label for="maxArticleChars">全文注入上限（字符）</label>
+      <input id="maxArticleChars" type="number" />
+      <p class="hint">超长网页会截断到此长度。默认 24000。</p>
+    </div>
+    <div class="field row">
+      <input id="useMock" type="checkbox" />
+      <label for="useMock" style="margin:0">使用 Mock（无 key 时联调用，不调真实模型）</label>
+    </div>
+
+    <button id="save">保存</button>
+    <span id="status"></span>
+
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

@@ -1,0 +1,63 @@
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 14px;
+  color: #1f2937;
+  background: #f9fafb;
+}
+body { display: flex; flex-direction: column; height: 100vh; }
+
+.ic-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; background: #fff; border-bottom: 1px solid #e5e7eb;
+}
+.ic-title { font-weight: 600; font-size: 15px; }
+.ic-sub { font-weight: 400; font-size: 11px; color: #9ca3af; margin-left: 4px; }
+.ic-icon-btn { border: none; background: none; font-size: 16px; cursor: pointer; color: #6b7280; }
+.ic-icon-btn:hover { color: #2563eb; }
+
+.ic-selection {
+  margin: 8px 12px 0; padding: 8px 10px; background: #eff6ff;
+  border-left: 3px solid #2563eb; border-radius: 4px;
+  font-size: 13px; color: #1e40af; max-height: 84px; overflow-y: auto; white-space: pre-wrap;
+}
+
+.ic-messages { flex: 1; overflow-y: auto; padding: 12px; }
+.ic-empty { color: #9ca3af; text-align: center; margin-top: 40px; line-height: 1.7; }
+.ic-hint { font-size: 12px; margin-top: 12px; }
+kbd { background: #e5e7eb; border-radius: 3px; padding: 1px 5px; font-size: 11px; }
+
+.ic-msg { margin-bottom: 14px; }
+.ic-msg.user .ic-bubble { background: #2563eb; color: #fff; margin-left: 28px; }
+.ic-msg.assistant .ic-bubble { background: #fff; border: 1px solid #e5e7eb; }
+.ic-bubble {
+  padding: 8px 12px; border-radius: 8px; line-height: 1.6; word-break: break-word;
+}
+.ic-bubble p { margin: 0 0 8px; }
+.ic-bubble p:last-child { margin-bottom: 0; }
+.ic-bubble h1,.ic-bubble h2,.ic-bubble h3,.ic-bubble h4 { margin: 6px 0; font-size: 14px; }
+.ic-bubble ul { margin: 4px 0; padding-left: 18px; }
+.ic-bubble code { background: #f3f4f6; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+.ic-bubble pre { background: #1f2937; color: #f9fafb; padding: 8px; border-radius: 6px; overflow-x: auto; }
+.ic-bubble pre code { background: none; color: inherit; }
+.ic-role { font-size: 11px; color: #9ca3af; margin-bottom: 3px; }
+.ic-cursor::after { content: "▌"; color: #2563eb; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.ic-error { color: #dc2626; font-size: 13px; }
+
+.ic-footer {
+  display: flex; gap: 6px; padding: 10px 12px; background: #fff; border-top: 1px solid #e5e7eb;
+}
+#ic-input {
+  flex: 1; resize: none; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px;
+  font: inherit; max-height: 120px;
+}
+#ic-input:focus { outline: none; border-color: #2563eb; }
+.ic-send {
+  border: none; background: #2563eb; color: #fff; border-radius: 6px; padding: 0 14px;
+  cursor: pointer; font: inherit;
+}
+.ic-send:hover { background: #1d4ed8; }
+.ic-send:disabled { background: #93c5fd; cursor: default; }

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>InContext</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <header class="ic-header">
+      <div class="ic-title">InContext <span class="ic-sub">划词释义 · 基于全文</span></div>
+      <button id="ic-settings" class="ic-icon-btn" title="设置">⚙</button>
+    </header>
+
+    <div id="ic-selection" class="ic-selection" hidden></div>
+
+    <main id="ic-messages" class="ic-messages">
+      <div class="ic-empty">
+        <p>在网页上划选一段文字，点击浮出的「解释」按钮，<br />我会结合整篇文章来解释它。</p>
+        <p class="ic-hint">也可右键菜单 / 快捷键 <kbd>Ctrl+Shift+E</kbd> 触发。</p>
+      </div>
+    </main>
+
+    <footer class="ic-footer">
+      <textarea id="ic-input" rows="1" placeholder="就这段继续追问…（Enter 发送 / Shift+Enter 换行）"></textarea>
+      <button id="ic-send" class="ic-send">发送</button>
+    </footer>
+
+    <script type="module" src="sidepanel.js"></script>
+  </body>
+</html>
