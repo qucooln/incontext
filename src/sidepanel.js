@@ -20,10 +20,16 @@ let myWindowId = null;
 let currentTabId = null;
 let conversation = []; // { role, content }[] 含 system，对应 currentTabId
 let currentPayload = null;
-let abortController = null;
-let busy = false;
+const runs = new Map(); // tabId -> AbortController（每个 tab 各自的在跑请求）
 let searchOn = false; // 「联网」开关
 let searchAvailable = false; // 是否配了搜索 key
+
+function isBusy(tabId) {
+  return runs.has(tabId);
+}
+function refreshSendState() {
+  $send.disabled = isBusy(currentTabId);
+}
 
 $settings.addEventListener("click", () => chrome.runtime.openOptionsPage());
 $searchToggle.addEventListener("click", () => {
@@ -93,11 +99,14 @@ function renderConversation() {
 }
 
 // ---------- 持久化（按 tab） ----------
-async function persist() {
-  if (currentTabId == null) return;
+async function persistTab(tabId, payload, messages) {
+  if (tabId == null) return;
   const { conversations = {} } = await chrome.storage.session.get("conversations");
-  conversations[currentTabId] = { payload: currentPayload, messages: conversation };
+  conversations[tabId] = { payload, messages };
   await chrome.storage.session.set({ conversations });
+}
+async function persist() {
+  await persistTab(currentTabId, currentPayload, conversation);
 }
 
 async function clearPending(tabId) {
@@ -108,16 +117,17 @@ async function clearPending(tabId) {
   }
 }
 
-// ---------- 流式 ----------
-// queryCtx: { selection, title, before, after, question }（用于联网时生成检索词）
-async function runStream(queryCtx) {
-  busy = true;
-  $send.disabled = true;
-  if (abortController) abortController.abort();
-  abortController = new AbortController();
-  const signal = abortController.signal;
-  const tabAtStart = currentTabId;
+// ---------- 流式（按 tab 的后台任务：切 tab 不打断，跑完存进发起它的 tab）----------
+// tabId: 发起本次解释的 tab；convo: 该 tab 的消息数组；payload: 该 tab 的选区；queryCtx 用于联网检索词
+async function runStream(tabId, payload, convo, queryCtx) {
+  // 同一 tab 上若有旧请求（如刚来新选区），打断它；不同 tab 互不影响
+  if (runs.has(tabId)) runs.get(tabId).abort();
+  const controller = new AbortController();
+  runs.set(tabId, controller);
+  const signal = controller.signal;
+  refreshSendState();
 
+  const viewing = () => tabId === currentTabId; // 当前是否正显示这个 tab
   const useSearch = searchOn && !!(queryCtx && (queryCtx.question || queryCtx.selection));
   const bubble = addBubble("assistant");
   bubble.classList.add("ic-cursor");
@@ -125,7 +135,6 @@ async function runStream(queryCtx) {
   try {
     const settings = await getSettings();
 
-    // 联网：先理解上下文生成精准检索词 → 搜索 → 资料作为临时上下文喂给主模型（DeepSeek）。
     let extraContext = "";
     let results = [];
     if (useSearch) {
@@ -133,16 +142,18 @@ async function runStream(queryCtx) {
         bubble.textContent = "🔎 正在理解上下文、生成检索词…";
         let sq;
         try {
-          sq = await generateSearchQuery(queryCtx, settings); // string[] | null
+          sq = await generateSearchQuery(queryCtx, settings);
         } catch {
-          sq = [queryCtx.question || queryCtx.selection].filter(Boolean); // 生成失败回退原文
+          sq = [queryCtx.question || queryCtx.selection].filter(Boolean);
         }
+        if (signal.aborted) { bubble.remove(); return; }
         if (sq === null || (Array.isArray(sq) && !sq.length)) {
-          // 模型判断无需联网，直接基于全文答；给个轻提示避免疑惑
-          const note = document.createElement("div");
-          note.style.cssText = "color:#9ca3af;font-size:12px;margin:0 12px 8px;";
-          note.textContent = "ℹ 本段判断无需联网，基于全文解释";
-          $messages.insertBefore(note, bubble.parentElement);
+          if (viewing()) {
+            const note = document.createElement("div");
+            note.style.cssText = "color:#9ca3af;font-size:12px;margin:0 12px 8px;";
+            note.textContent = "ℹ 本段判断无需联网，基于全文解释";
+            $messages.insertBefore(note, bubble.parentElement);
+          }
           bubble.textContent = "";
         } else {
           bubble.textContent = "🔍 联网检索：" + sq.join("  ·  ");
@@ -151,17 +162,19 @@ async function runStream(queryCtx) {
           bubble.textContent = "✍️ 结合资料生成中…";
         }
       } catch (e) {
-        const warn = document.createElement("div");
-        warn.style.cssText = "color:#b45309;font-size:12px;margin:0 12px 8px;white-space:pre-wrap;";
-        warn.textContent = "⚠ 联网搜索失败：" + (e.message || e) + "\n（本次仅基于全文回答）";
-        $messages.insertBefore(warn, bubble.parentElement);
+        if (viewing()) {
+          const warn = document.createElement("div");
+          warn.style.cssText = "color:#b45309;font-size:12px;margin:0 12px 8px;white-space:pre-wrap;";
+          warn.textContent = "⚠ 联网搜索失败：" + (e.message || e) + "\n（本次仅基于全文回答）";
+          $messages.insertBefore(warn, bubble.parentElement);
+        }
         bubble.textContent = "";
       }
-      if (signal.aborted) { bubble.remove(); busy = false; $send.disabled = false; return; }
+      if (signal.aborted) { bubble.remove(); return; }
     }
 
     await streamChat({
-      messages: conversation,
+      messages: convo,
       settings,
       signal,
       extraContext,
@@ -169,38 +182,44 @@ async function runStream(queryCtx) {
         if (signal.aborted) return;
         acc = full;
         bubble.innerHTML = renderMarkdown(full);
-        $messages.scrollTop = $messages.scrollHeight;
+        if (viewing()) $messages.scrollTop = $messages.scrollHeight;
       },
     });
-    // 联网时把「来源」清单附在答案末尾（模型正文用 [n] 标注，这里对应编号给出链接）
     if (results.length && acc) {
       acc += buildSourcesMarkdown(results);
       bubble.innerHTML = renderMarkdown(acc);
     }
     bubble.classList.remove("ic-cursor");
-    if (tabAtStart === currentTabId) {
-      conversation.push({ role: "assistant", content: acc });
-      await persist();
+    // 无论现在显示哪个 tab，结果都存回发起它的 tab
+    convo.push({ role: "assistant", content: acc });
+    await persistTab(tabId, payload, convo);
+    // 若用户此刻正看着这个 tab（含中途切走又切回），重渲染以确保看到完整结果
+    if (viewing()) {
+      currentPayload = payload;
+      conversation = convo;
+      renderConversation();
     }
   } catch (e) {
     bubble.classList.remove("ic-cursor");
     if (e.name === "AbortError") bubble.remove();
     else bubble.innerHTML = `<span class="ic-error">出错了：${e.message}</span>`;
   } finally {
-    busy = false;
-    $send.disabled = false;
+    if (runs.get(tabId) === controller) runs.delete(tabId);
+    refreshSendState();
   }
 }
 
 // 对某个新选区开始一段全新解释（覆盖该 tab 内的旧对话）。
 async function startExplain(payload) {
+  const tabId = currentTabId;
   currentPayload = payload;
   clearMessages();
   showSelectionHeader();
   const settings = await getSettings();
   conversation = buildInitialMessages(payload, settings);
-  await persist();
-  await runStream({
+  await persistTab(tabId, payload, conversation);
+  // 后台跑，不 await：切 tab 也不影响它跑完
+  runStream(tabId, payload, conversation, {
     selection: payload.selection,
     title: payload.title,
     before: payload.before,
@@ -241,14 +260,16 @@ async function switchToTab(tabId) {
     }
     return;
   }
-  if (abortController) abortController.abort();
+  // 切 tab 只切换显示，不打断其它 tab 正在跑的请求
   await loadTab(tabId);
+  refreshSendState();
 }
 
 // ---------- 追问 ----------
 async function sendFollowUp() {
   const text = $input.value.trim();
-  if (!text || busy) return;
+  if (!text || isBusy(currentTabId)) return;
+  const tabId = currentTabId;
   if (!conversation.length) {
     conversation = [{ role: "system", content: "你是一个乐于助人的阅读助手。" }];
   }
@@ -257,12 +278,14 @@ async function sendFollowUp() {
   const b = addBubble("user");
   b.textContent = text;
   conversation.push({ role: "user", content: text });
-  await persist();
-  await runStream({
-    selection: currentPayload?.selection || "",
-    title: currentPayload?.title || "",
-    before: currentPayload?.before || "",
-    after: currentPayload?.after || "",
+  const convo = conversation;
+  const payload = currentPayload;
+  await persistTab(tabId, payload, convo);
+  runStream(tabId, payload, convo, {
+    selection: payload?.selection || "",
+    title: payload?.title || "",
+    before: payload?.before || "",
+    after: payload?.after || "",
     question: text,
   });
 }
@@ -282,7 +305,7 @@ $input.addEventListener("input", () => {
 // 新选区通知：选区一定来自用户正在操作的 tab，直接信任并切到它（避免 getCurrent 判错导致静默丢弃）。
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === "NEW_SELECTION" && msg.tabId != null) {
-    if (busy && abortController) abortController.abort();
+    // 切到该 tab 显示并开新解释；同 tab 的旧请求由 runStream 内部按 tab 打断
     currentTabId = msg.tabId;
     clearPending(msg.tabId);
     startExplain(msg.payload);
