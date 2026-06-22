@@ -4,7 +4,7 @@ export const PROVIDERS = {
   deepseek: {
     label: "DeepSeek",
     baseURL: "https://api.deepseek.com/v1",
-    defaultModel: "deepseek-chat",
+    defaultModel: "deepseek-v4-pro",
   },
   glm: {
     label: "GLM (智谱)",
@@ -26,7 +26,7 @@ export const PROVIDERS = {
 export const DEFAULT_SETTINGS = {
   provider: "deepseek",
   baseURL: PROVIDERS.deepseek.baseURL,
-  model: PROVIDERS.deepseek.defaultModel,
+  model: "deepseek-v4-pro",
   apiKey: "",
   targetLang: "中文",
   // 全文注入上限（字符数）。超出则截断，MVP 简单策略。
