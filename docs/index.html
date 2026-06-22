@@ -3,20 +3,18 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>InContext — Explain any selection, grounded in the whole page | AI reading assistant</title>
-<meta name="description" content="InContext is a Chrome extension that explains selected text based on your LLM's understanding of the whole article — not just the snippet. Multi-turn follow-ups, any language, optional cited web search, 15+ models, bring your own key." />
+<title>InContext — Explain any selection, grounded in the whole page | AI reading assistant 划词释义</title>
+<meta name="description" content="InContext is a Chrome extension that explains selected text based on your LLM's understanding of the whole article — not just the snippet. Multi-turn, any language, optional cited web search, 15+ models, bring your own key. 基于全文理解的划词释义 Chrome 插件。" />
 <link rel="canonical" href="https://qucooln.github.io/incontext/" />
 <meta name="keywords" content="explain selected text AI, web reading assistant, chrome extension explain selection, 划词AI解释, 基于全文 解释, grounded explanation, LLM reading helper, BYOK chrome extension, DeepSeek Claude GLM extension" />
 
-<!-- Open Graph / Twitter -->
 <meta property="og:type" content="website" />
 <meta property="og:title" content="InContext — Explain any selection, grounded in the whole page" />
 <meta property="og:description" content="Explain selected text using the whole article as context. Multi-turn, multilingual, cited web search, 15+ LLMs, BYOK." />
 <meta property="og:url" content="https://qucooln.github.io/incontext/" />
-<meta property="og:image" content="https://qucooln.github.io/incontext/og.png" />
+<meta property="og:image" content="https://qucooln.github.io/incontext/demo.gif" />
 <meta name="twitter:card" content="summary_large_image" />
 
-<!-- Structured data: helps search engines & AI answer engines cite the project -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -42,22 +40,24 @@
     { "@type": "Question", "name": "Is my data private?",
       "acceptedAnswer": { "@type": "Answer", "text": "Yes. InContext is bring-your-own-key. Your API key and conversations stay in your browser's local storage and are never sent to any third party other than the model and search endpoints you configure yourself." } },
     { "@type": "Question", "name": "Which AI models does InContext support?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Any OpenAI-compatible endpoint plus native Anthropic Claude — 15+ presets including DeepSeek, GLM (Zhipu), Kimi (Moonshot), Qwen, Doubao, OpenAI, Gemini, Grok, Mistral, Groq, OpenRouter and SiliconFlow." } },
+      "acceptedAnswer": { "@type": "Answer", "text": "Any OpenAI-compatible endpoint plus native Anthropic Claude — 15+ presets including DeepSeek, GLM, Kimi, Qwen, Doubao, OpenAI, Gemini, Grok, Mistral, Groq, OpenRouter and SiliconFlow." } },
     { "@type": "Question", "name": "Can InContext search the web?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Yes, optionally. A search engine (Serper, SerpAPI, or Tavily) fetches live data and your main model writes the answer with cited [n] sources. Queries are generated context-aware and bilingually to disambiguate homonyms." } }
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes, optionally. A search engine (Serper, SerpAPI, or Tavily) fetches live data and your main model writes the answer with cited [n] sources." } }
   ]
 }
 </script>
 <style>
   * { box-sizing: border-box; }
   body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif; color:#1f2937; line-height:1.6; }
-  .wrap { max-width: 860px; margin: 0 auto; padding: 0 20px; }
-  header { background: linear-gradient(135deg,#2563eb,#1e40af); color:#fff; padding:64px 0 56px; text-align:center; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 20px; }
+  header { background: linear-gradient(135deg,#2563eb,#1e40af); color:#fff; padding:60px 0 52px; text-align:center; position:relative; }
   header h1 { font-size: 40px; margin:0 0 12px; }
-  header p { font-size: 19px; opacity:.95; max-width:680px; margin:0 auto 28px; }
+  header p.sub { font-size: 19px; opacity:.95; max-width:700px; margin:0 auto 26px; }
   .cta { display:inline-block; background:#fff; color:#1e40af; font-weight:600; padding:12px 24px; border-radius:8px; text-decoration:none; margin:6px; }
   .cta.ghost { background:transparent; color:#fff; border:1px solid rgba(255,255,255,.6); }
-  section { padding: 44px 0; border-bottom:1px solid #eef0f3; }
+  .langswitch { position:absolute; top:16px; right:20px; }
+  .langswitch button { background:rgba(255,255,255,.15); color:#fff; border:1px solid rgba(255,255,255,.4); border-radius:6px; padding:4px 10px; cursor:pointer; font-size:13px; }
+  section { padding: 42px 0; border-bottom:1px solid #eef0f3; }
   h2 { font-size: 26px; }
   table { width:100%; border-collapse:collapse; margin-top:16px; font-size:15px; }
   th,td { border:1px solid #e5e7eb; padding:9px 12px; text-align:center; }
@@ -68,30 +68,37 @@
   details { margin:10px 0; background:#f9fafb; border-radius:8px; padding:10px 14px; }
   summary { font-weight:600; cursor:pointer; }
   footer { text-align:center; color:#9ca3af; padding:32px 0; font-size:14px; }
-  code { background:#f3f4f6; padding:1px 6px; border-radius:4px; }
+  .demo img { max-width:100%; border-radius:10px; box-shadow:0 8px 30px rgba(0,0,0,.25); }
+  [data-lang] { display:none; }
+  body.en [data-lang="en"] { display:revert; }
+  body.zh [data-lang="zh"] { display:revert; }
+  body.en .feat[data-lang="en"], body.zh .feat[data-lang="zh"] { display:grid; }
   @media(max-width:640px){ .feat{grid-template-columns:1fr;} header h1{font-size:30px;} }
 </style>
 </head>
-<body>
+<body class="en">
 <header>
+  <div class="langswitch"><button id="lang-toggle">中文</button></div>
   <div class="wrap">
     <h1>InContext</h1>
-    <p>Explain any selection — <strong>grounded in the whole page</strong>, not just the snippet. Multi‑turn, multilingual, with optional cited web search.</p>
+    <p class="sub" data-lang="en">Explain any selection — <strong>grounded in the whole page</strong>, not just the snippet. Multi‑turn, multilingual, with optional cited web search.</p>
+    <p class="sub" data-lang="zh">划选任意一段，<strong>基于整篇文章的理解</strong>来解释——不是孤立翻译。支持多轮追问、多语种、可联网并标注来源。</p>
     <a class="cta" href="https://github.com/qucooln/incontext">⭐ GitHub</a>
-    <a class="cta ghost" href="https://github.com/qucooln/incontext#install">Install</a>
-    <p style="margin-top:28px"><img src="demo.gif" alt="InContext demo — explain selected text grounded in the whole article, with cited web search" style="max-width:100%;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.25)"></p>
+    <a class="cta ghost" href="https://github.com/qucooln/incontext#install"><span data-lang="en">Install</span><span data-lang="zh">安装</span></a>
+    <p class="demo" style="margin-top:28px"><img src="demo.gif" alt="InContext demo — explain selected text grounded in the whole article" /></p>
   </div>
 </header>
 
 <main class="wrap">
   <section>
-    <h2>What it does</h2>
-    <p>Select a sentence on any web page. Instead of translating that isolated snippet, InContext extracts the <strong>entire article</strong> and asks your chosen LLM to explain what the passage means <em>in this specific article</em> — the author's intent, implied meaning, and what each term refers to here. Then keep asking follow‑up questions, in any language.</p>
+    <h2><span data-lang="en">What it does</span><span data-lang="zh">它做什么</span></h2>
+    <p data-lang="en">Select a sentence on any web page. Instead of translating that isolated snippet, InContext extracts the <strong>entire article</strong> and asks your chosen LLM to explain what the passage means <em>in this specific article</em> — the author's intent, implied meaning, and what each term refers to here. Then keep asking follow‑up questions, in any language.</p>
+    <p data-lang="zh">在任意网页划选一句话。InContext 不是翻译那孤立的一段，而是先抽取<strong>整篇文章</strong>，让你选的大模型解释这段在<em>这篇文章里</em>到底什么意思——作者意图、隐含信息、每个术语在此处的真实所指。然后可用任意语言继续追问。</p>
   </section>
 
   <section>
-    <h2>Why it's different</h2>
-    <table>
+    <h2><span data-lang="en">Why it's different</span><span data-lang="zh">为什么不一样</span></h2>
+    <table data-lang="en">
       <tr><th>Capability</th><th>Selection translators</th><th>Page summarizers</th><th>InContext</th></tr>
       <tr><td>Explain the selected passage</td><td>✅</td><td>❌</td><td>✅</td></tr>
       <tr><td>Use the whole article as context</td><td>❌</td><td>✅</td><td>✅</td></tr>
@@ -99,29 +106,69 @@
       <tr><td>Multi‑turn follow‑ups</td><td>partial</td><td>❌</td><td>✅</td></tr>
       <tr><td>Cited web search</td><td>❌</td><td>❌</td><td>✅</td></tr>
     </table>
+    <table data-lang="zh">
+      <tr><th>能力</th><th>划词翻译</th><th>全文总结</th><th>InContext</th></tr>
+      <tr><td>解释选中段</td><td>✅</td><td>❌</td><td>✅</td></tr>
+      <tr><td>拿整篇文章当上下文</td><td>❌</td><td>✅</td><td>✅</td></tr>
+      <tr><td><strong>用整篇文章来解释选中段</strong></td><td>❌</td><td>❌</td><td>✅</td></tr>
+      <tr><td>多轮追问</td><td>部分</td><td>❌</td><td>✅</td></tr>
+      <tr><td>联网搜索 + 来源</td><td>❌</td><td>❌</td><td>✅</td></tr>
+    </table>
   </section>
 
   <section>
-    <h2>Features</h2>
-    <div class="feat">
+    <h2><span data-lang="en">Features</span><span data-lang="zh">功能</span></h2>
+    <div class="feat" data-lang="en">
       <div><b>Whole‑page grounding</b><br>The full article is the context — not the isolated snippet.</div>
-      <div><b>Cited web search</b><br>Live facts with [n] superscript sources; bilingual, disambiguated queries.</div>
+      <div><b>Cited web search</b><br>Live facts with [n] sources; bilingual, disambiguated queries.</div>
       <div><b>15+ models, BYOK</b><br>DeepSeek, GLM, Kimi, Qwen, Claude, Gemini, Grok… keys stored locally.</div>
       <div><b>Multilingual & multi‑turn</b><br>Explain in any language; keep asking about the passage.</div>
+    </div>
+    <div class="feat" data-lang="zh">
+      <div><b>基于全文</b><br>整篇文章是上下文，不是孤立片段。</div>
+      <div><b>联网带来源</b><br>实时信息 + [n] 来源；检索词中英双语、自动消歧。</div>
+      <div><b>15+ 模型，自带 key</b><br>DeepSeek、GLM、Kimi、通义、Claude、Gemini、Grok… key 只存本地。</div>
+      <div><b>多语 & 多轮</b><br>任意语言解释；就这段持续追问。</div>
     </div>
   </section>
 
   <section>
     <h2>FAQ</h2>
-    <details><summary>How is this different from a selection translator?</summary><p>Translators send only the snippet. InContext uses the whole article as context to explain what the passage means here.</p></details>
-    <details><summary>Is my data private?</summary><p>Yes — bring‑your‑own‑key. Keys and conversations stay in your browser; page text goes only to the endpoint you configure. No backend of ours.</p></details>
-    <details><summary>Which models are supported?</summary><p>Any OpenAI‑compatible endpoint plus native Anthropic Claude — 15+ presets.</p></details>
-    <details><summary>Can it search the web?</summary><p>Optionally — a search engine fetches data, your model writes the cited answer.</p></details>
+    <div data-lang="en">
+      <details><summary>How is this different from a selection translator?</summary><p>Translators send only the snippet. InContext uses the whole article as context to explain what the passage means here.</p></details>
+      <details><summary>Is my data private?</summary><p>Yes — bring‑your‑own‑key. Keys and conversations stay in your browser; page text goes only to the endpoint you configure. No backend of ours.</p></details>
+      <details><summary>Which models are supported?</summary><p>Any OpenAI‑compatible endpoint plus native Anthropic Claude — 15+ presets.</p></details>
+      <details><summary>Can it search the web?</summary><p>Optionally — a search engine fetches data, your model writes the cited answer.</p></details>
+    </div>
+    <div data-lang="zh">
+      <details><summary>和划词翻译有什么不同？</summary><p>翻译只发选中片段。InContext 拿整篇文章当上下文，解释这段在此处的真正含义。</p></details>
+      <details><summary>隐私安全吗？</summary><p>安全——自带 key。key 和对话只存浏览器；网页正文只发往你配置的接口，我们没有后端。</p></details>
+      <details><summary>支持哪些模型？</summary><p>任意 OpenAI 兼容接口 + 原生 Anthropic Claude，15+ 预设。</p></details>
+      <details><summary>能联网吗？</summary><p>可选——搜索引擎取数据，你的模型作答并标注来源。</p></details>
+    </div>
   </section>
 </main>
 
 <footer class="wrap">
   Open source (MIT) · <a href="https://github.com/qucooln/incontext">github.com/qucooln/incontext</a>
 </footer>
+
+<script>
+  (function () {
+    var saved = localStorage.getItem("ic-lang");
+    var lang = saved || (navigator.language && navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en");
+    apply(lang);
+    document.getElementById("lang-toggle").addEventListener("click", function () {
+      apply(document.body.classList.contains("zh") ? "en" : "zh");
+    });
+    function apply(l) {
+      document.body.classList.remove("en", "zh");
+      document.body.classList.add(l);
+      document.documentElement.lang = l === "zh" ? "zh-CN" : "en";
+      document.getElementById("lang-toggle").textContent = l === "zh" ? "EN" : "中文";
+      localStorage.setItem("ic-lang", l);
+    }
+  })();
+</script>
 </body>
 </html>
