@@ -4,72 +4,99 @@
     <meta charset="UTF-8" />
     <title>InContext 设置</title>
     <style>
-      body { font-family: -apple-system, "PingFang SC", sans-serif; max-width: 520px; margin: 40px auto; padding: 0 20px; color: #1f2937; }
+      body { font-family: -apple-system, "PingFang SC", sans-serif; max-width: 560px; margin: 32px auto; padding: 0 20px; color: #1f2937; }
       h1 { font-size: 20px; }
+      .tabs { display: flex; gap: 4px; border-bottom: 1px solid #e5e7eb; margin-bottom: 20px; }
+      .tab { padding: 8px 16px; cursor: pointer; border: none; background: none; font-size: 14px; color: #6b7280; border-bottom: 2px solid transparent; }
+      .tab.active { color: #2563eb; border-bottom-color: #2563eb; font-weight: 600; }
+      .panel { display: none; }
+      .panel.active { display: block; }
       .field { margin-bottom: 16px; }
       label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 14px; }
-      input, select { width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
+      input[type=text], input[type=password], input[type=number], select { width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
       .hint { font-size: 12px; color: #6b7280; margin-top: 4px; }
+      .hint a { color: #2563eb; }
       .row { display: flex; align-items: center; gap: 8px; }
-      .row input[type="checkbox"] { width: auto; }
-      button { background: #2563eb; color: #fff; border: none; border-radius: 6px; padding: 10px 18px; font-size: 14px; cursor: pointer; }
-      button:hover { background: #1d4ed8; }
+      .row input[type=checkbox], .row input[type=radio] { width: auto; }
+      .radio-line { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+      .radio-line.disabled { opacity: .45; }
+      button#save { background: #2563eb; color: #fff; border: none; border-radius: 6px; padding: 10px 18px; font-size: 14px; cursor: pointer; margin-top: 8px; }
+      button#save:hover { background: #1d4ed8; }
       #status { margin-left: 12px; color: #16a34a; font-size: 13px; }
     </style>
   </head>
   <body>
     <h1>InContext 设置</h1>
-    <p class="hint">本插件走 OpenAI 兼容协议，使用你自己的 API Key（仅存于本地浏览器，不上传任何第三方）。</p>
 
-    <div class="field">
-      <label for="provider">模型服务商</label>
-      <select id="provider"></select>
-    </div>
-    <div class="field">
-      <label for="baseURL">Base URL</label>
-      <input id="baseURL" type="text" placeholder="https://api.deepseek.com/v1" />
-    </div>
-    <div class="field">
-      <label for="model">模型</label>
-      <input id="model" type="text" placeholder="deepseek-chat" />
-    </div>
-    <div class="field">
-      <label for="apiKey">API Key</label>
-      <input id="apiKey" type="password" placeholder="sk-..." />
-    </div>
-    <div class="field">
-      <label for="targetLang">解释输出语言</label>
-      <input id="targetLang" type="text" placeholder="中文 / English / 日本語 …" />
-    </div>
-    <div class="field">
-      <label for="maxArticleChars">全文注入上限（字符）</label>
-      <input id="maxArticleChars" type="number" />
-      <p class="hint">超长网页会截断到此长度。默认 24000。</p>
-    </div>
-    <div class="field row">
-      <input id="useMock" type="checkbox" />
-      <label for="useMock" style="margin:0">使用 Mock（无 key 时联调用，不调真实模型）</label>
+    <div class="tabs">
+      <button class="tab active" data-tab="model">模型</button>
+      <button class="tab" data-tab="search">搜索</button>
     </div>
 
-    <hr style="margin:24px 0;border:none;border-top:1px solid #e5e7eb" />
-    <h1 style="font-size:16px">联网搜索（混合模式）</h1>
-    <p class="hint">侧栏点「🔍 联网」时：先用搜索引擎拿实时资料，再由上面配置的主模型（如 deepseek-v4-pro）结合全文生成答案并标注来源。搜索引擎只取数据，答案仍出自主模型。</p>
-    <div class="field row">
-      <input id="searchEnabled" type="checkbox" />
-      <label for="searchEnabled" style="margin:0">默认开启「联网」开关</label>
+    <!-- 模型 -->
+    <div class="panel active" id="panel-model">
+      <p class="hint">走 OpenAI 兼容协议，使用你自己的 API Key（仅存于本地浏览器）。</p>
+      <div class="field">
+        <label for="provider">模型服务商</label>
+        <select id="provider"></select>
+      </div>
+      <div class="field">
+        <label for="baseURL">Base URL</label>
+        <input id="baseURL" type="text" placeholder="https://api.deepseek.com/v1" />
+      </div>
+      <div class="field">
+        <label for="model">模型</label>
+        <input id="model" type="text" placeholder="deepseek-chat" />
+      </div>
+      <div class="field">
+        <label for="apiKey">API Key</label>
+        <input id="apiKey" type="password" placeholder="sk-..." />
+      </div>
+      <div class="field">
+        <label for="targetLang">解释输出语言</label>
+        <input id="targetLang" type="text" placeholder="中文 / English / 日本語 …" />
+      </div>
+      <div class="field">
+        <label for="maxArticleChars">全文注入上限（字符）</label>
+        <input id="maxArticleChars" type="number" />
+        <p class="hint">超长网页会截断到此长度。默认 24000。</p>
+      </div>
+      <div class="field row">
+        <input id="useMock" type="checkbox" />
+        <label for="useMock" style="margin:0">使用 Mock（无 key 时联调用，不调真实模型）</label>
+      </div>
     </div>
-    <div class="field">
-      <label for="searchProvider">搜索引擎</label>
-      <select id="searchProvider">
-        <option value="serper">Serper（真 Google，需外网）</option>
-        <option value="tavily">Tavily（LLM 友好，需外网）</option>
-        <option value="bocha">博查 Bocha（国内直连，中文好）</option>
-        <option value="zhipu">智谱（国内，较弱）</option>
-      </select>
-    </div>
-    <div class="field">
-      <label for="searchApiKey">搜索引擎 API Key</label>
-      <input id="searchApiKey" type="password" placeholder="对应所选搜索引擎平台的 key" />
+
+    <!-- 搜索 -->
+    <div class="panel" id="panel-search">
+      <p class="hint">侧栏点「🔍 联网」时：先用搜索引擎拿实时资料，再由「模型」页配置的主模型结合全文生成答案并标注来源。搜索只取数据，答案仍出自主模型。填了哪家的 key 才能选哪家；都没填则无法联网。</p>
+      <div class="field row">
+        <input id="searchEnabled" type="checkbox" />
+        <label for="searchEnabled" style="margin:0">默认开启「联网」开关</label>
+      </div>
+
+      <div class="field">
+        <label>使用的搜索引擎</label>
+        <div class="radio-line" id="line-serper">
+          <input type="radio" name="searchProvider" id="prov-serper" value="serper" />
+          <label for="prov-serper" style="margin:0;font-weight:400">Serper（真 Google，需外网）</label>
+        </div>
+        <div class="radio-line" id="line-tavily">
+          <input type="radio" name="searchProvider" id="prov-tavily" value="tavily" />
+          <label for="prov-tavily" style="margin:0;font-weight:400">Tavily（LLM 友好，需外网）</label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="serperApiKey">Serper API Key</label>
+        <input id="serperApiKey" type="password" placeholder="serper.dev 的 key" />
+        <p class="hint">去 <a href="https://serper.dev" target="_blank">serper.dev</a> 注册，免费 2500 次。</p>
+      </div>
+      <div class="field">
+        <label for="tavilyApiKey">Tavily API Key</label>
+        <input id="tavilyApiKey" type="password" placeholder="tavily.com 的 key" />
+        <p class="hint">去 <a href="https://tavily.com" target="_blank">tavily.com</a> 注册，免费 1000/月。</p>
+      </div>
     </div>
 
     <button id="save">保存</button>

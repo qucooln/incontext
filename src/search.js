@@ -1,11 +1,18 @@
-// 联网搜索：可插拔多引擎。统一归一化为 { title, link, content, media }。
+// 联网搜索：Serper（真 Google）与 Tavily 两家。统一归一化为 { title, link, content, media }。
 // 拿到的资料注入给主模型(DeepSeek)，由它结合全文生成最终解释并标注来源。
 
-async function searchSerper(query, settings) {
-  // 真·Google 结果（google.serper.dev）。需外网。
+function hostOf(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
+async function searchSerper(query, key) {
   const resp = await fetch("https://google.serper.dev/search", {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-API-KEY": settings.searchApiKey },
+    headers: { "Content-Type": "application/json", "X-API-KEY": key },
     body: JSON.stringify({ q: query, hl: "zh-cn", num: 10 }),
   });
   if (!resp.ok) throw new Error(`Serper ${resp.status}: ${(await resp.text()).slice(0, 200)}`);
@@ -14,21 +21,15 @@ async function searchSerper(query, settings) {
     title: r.title,
     link: r.link,
     content: r.snippet || "",
-    media: r.link ? new URL(r.link).hostname.replace(/^www\./, "") : "",
+    media: hostOf(r.link),
   }));
 }
 
-async function searchTavily(query, settings) {
-  // 专为 LLM 优化的搜索（api.tavily.com）。需外网。
+async function searchTavily(query, key) {
   const resp = await fetch("https://api.tavily.com/search", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      api_key: settings.searchApiKey,
-      query,
-      max_results: 8,
-      search_depth: "basic",
-    }),
+    body: JSON.stringify({ api_key: key, query, max_results: 8, search_depth: "basic" }),
   });
   if (!resp.ok) throw new Error(`Tavily ${resp.status}: ${(await resp.text()).slice(0, 200)}`);
   const d = await resp.json();
@@ -36,65 +37,35 @@ async function searchTavily(query, settings) {
     title: r.title,
     link: r.url,
     content: r.content || "",
-    media: r.url ? new URL(r.url).hostname.replace(/^www\./, "") : "",
-  }));
-}
-
-async function searchBocha(query, settings) {
-  // 博查（api.bochaai.com）。国内可直连，中文友好。
-  const resp = await fetch("https://api.bochaai.com/v1/web-search", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Bearer " + settings.searchApiKey,
-    },
-    body: JSON.stringify({ query, summary: true, count: 10 }),
-  });
-  if (!resp.ok) throw new Error(`博查 ${resp.status}: ${(await resp.text()).slice(0, 200)}`);
-  const d = await resp.json();
-  const items = d.data?.webPages?.value || [];
-  return items.map((r) => ({
-    title: r.name,
-    link: r.url,
-    content: r.summary || r.snippet || "",
-    media: r.siteName || (r.url ? new URL(r.url).hostname.replace(/^www\./, "") : ""),
-  }));
-}
-
-async function searchZhipu(query, settings) {
-  // 智谱独立 web_search（兜底/国内）。
-  const url = settings.searchBaseURL.replace(/\/$/, "") + "/web_search";
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Bearer " + settings.searchApiKey,
-    },
-    body: JSON.stringify({ search_engine: "search_std", search_query: query.slice(0, 200) }),
-  });
-  if (!resp.ok) throw new Error(`智谱 ${resp.status}: ${(await resp.text()).slice(0, 200)}`);
-  const d = await resp.json();
-  return (d.search_result || []).map((r) => ({
-    title: r.title,
-    link: r.link || "",
-    content: r.content || "",
-    media: r.media || "",
+    media: hostOf(r.url),
   }));
 }
 
 const PROVIDERS = {
-  serper: searchSerper,
-  tavily: searchTavily,
-  bocha: searchBocha,
-  zhipu: searchZhipu,
+  serper: { label: "Serper（Google）", fn: searchSerper, keyField: "serperApiKey" },
+  tavily: { label: "Tavily", fn: searchTavily, keyField: "tavilyApiKey" },
 };
 
+export function providerKey(settings, provider) {
+  const p = PROVIDERS[provider];
+  return p ? settings[p.keyField] || "" : "";
+}
+
+// 有没有任何一个搜索引擎配了 key（决定「联网」能否开启）。
+export function hasAnySearchKey(settings) {
+  return Object.keys(PROVIDERS).some((p) => providerKey(settings, p));
+}
+
+// 选一个有 key 的可用引擎：优先用户所选，否则退到任意有 key 的。
+export function effectiveProvider(settings) {
+  if (providerKey(settings, settings.searchProvider)) return settings.searchProvider;
+  return Object.keys(PROVIDERS).find((p) => providerKey(settings, p)) || null;
+}
+
 export async function webSearch(query, settings) {
-  if (!settings.searchApiKey) {
-    throw new Error("联网需要在设置里选择搜索引擎并填对应的 API Key");
-  }
-  const fn = PROVIDERS[settings.searchProvider] || searchSerper;
-  return fn(query, settings);
+  const provider = effectiveProvider(settings);
+  if (!provider) throw new Error("未配置搜索引擎 key，请到设置「搜索」页填 Serper 或 Tavily 的 key");
+  return PROVIDERS[provider].fn(query, providerKey(settings, provider));
 }
 
 // 喂给主模型的资料块（带编号，强制要求模型在引用处标注 [n]）。

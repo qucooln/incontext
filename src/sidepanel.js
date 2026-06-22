@@ -1,6 +1,6 @@
 import { getSettings } from "./config.js";
 import { streamChat } from "./llm.js";
-import { webSearch, formatSearchResults, buildSourcesMarkdown } from "./search.js";
+import { webSearch, formatSearchResults, buildSourcesMarkdown, hasAnySearchKey } from "./search.js";
 import { buildInitialMessages } from "./prompt.js";
 import { renderMarkdown } from "./markdown.js";
 
@@ -23,9 +23,14 @@ let currentPayload = null;
 let abortController = null;
 let busy = false;
 let searchOn = false; // 「联网」开关
+let searchAvailable = false; // 是否配了搜索 key
 
 $settings.addEventListener("click", () => chrome.runtime.openOptionsPage());
 $searchToggle.addEventListener("click", () => {
+  if (!searchAvailable) {
+    chrome.runtime.openOptionsPage(); // 没 key，引导去设置
+    return;
+  }
   searchOn = !searchOn;
   $searchToggle.classList.toggle("on", searchOn);
 });
@@ -265,8 +270,11 @@ chrome.windows.onFocusChanged.addListener(async (winId) => {
 // 启动：定位当前窗口的激活 tab，加载它的状态
 (async () => {
   const settings = await getSettings();
-  searchOn = !!settings.searchEnabled;
+  searchAvailable = hasAnySearchKey(settings);
+  searchOn = searchAvailable && !!settings.searchEnabled;
   $searchToggle.classList.toggle("on", searchOn);
+  $searchToggle.classList.toggle("disabled", !searchAvailable);
+  $searchToggle.title = searchAvailable ? "开启后联网搜索回答" : "未配置搜索 key，点此去设置";
   const win = await chrome.windows.getCurrent();
   myWindowId = win.id;
   const [tab] = await chrome.tabs.query({ active: true, windowId: myWindowId });
