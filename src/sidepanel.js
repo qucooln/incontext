@@ -211,13 +211,13 @@ $input.addEventListener("input", () => {
   $input.style.height = Math.min($input.scrollHeight, 120) + "px";
 });
 
-// 新选区通知：只处理当前激活 tab 的；其它 tab 的留作 pending，切过去再显示。
+// 新选区通知：选区一定来自用户正在操作的 tab，直接信任并切到它（避免 getCurrent 判错导致静默丢弃）。
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === "NEW_SELECTION" && msg.tabId != null) {
-    if (msg.tabId === currentTabId) {
-      clearPending(msg.tabId);
-      startExplain(msg.payload);
-    }
+    if (busy && abortController) abortController.abort();
+    currentTabId = msg.tabId;
+    clearPending(msg.tabId);
+    startExplain(msg.payload);
   }
 });
 
