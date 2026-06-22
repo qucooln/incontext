@@ -8,6 +8,7 @@ const $selection = document.getElementById("ic-selection");
 const $input = document.getElementById("ic-input");
 const $send = document.getElementById("ic-send");
 const $settings = document.getElementById("ic-settings");
+const $searchToggle = document.getElementById("ic-search-toggle");
 
 const EMPTY_HTML = `<div class="ic-empty">
   <p>在网页上划选一段文字，点击浮出的「解释」按钮，<br />我会结合整篇文章来解释它。</p>
@@ -20,8 +21,13 @@ let conversation = []; // { role, content }[] 含 system，对应 currentTabId
 let currentPayload = null;
 let abortController = null;
 let busy = false;
+let searchOn = false; // 「联网」开关
 
 $settings.addEventListener("click", () => chrome.runtime.openOptionsPage());
+$searchToggle.addEventListener("click", () => {
+  searchOn = !searchOn;
+  $searchToggle.classList.toggle("on", searchOn);
+});
 
 // ---------- 渲染 ----------
 function clearMessages() {
@@ -105,22 +111,28 @@ async function runStream() {
   const signal = abortController.signal;
   const tabAtStart = currentTabId;
 
+  const useSearch = searchOn;
   const bubble = addBubble("assistant");
   bubble.classList.add("ic-cursor");
+  if (useSearch) bubble.textContent = "🔍 联网检索中…";
   let acc = "";
+  let firstContent = true;
   try {
     const settings = await getSettings();
     await streamChat({
       messages: conversation,
       settings,
       signal,
+      useSearch,
       onDelta: (_d, full) => {
         if (signal.aborted) return;
+        firstContent = false;
         acc = full;
         bubble.innerHTML = renderMarkdown(full);
         $messages.scrollTop = $messages.scrollHeight;
       },
     });
+    if (firstContent && acc === "") bubble.textContent = "";
     bubble.classList.remove("ic-cursor");
     if (tabAtStart === currentTabId) {
       conversation.push({ role: "assistant", content: acc });
@@ -234,6 +246,9 @@ chrome.windows.onFocusChanged.addListener(async (winId) => {
 
 // 启动：定位当前窗口的激活 tab，加载它的状态
 (async () => {
+  const settings = await getSettings();
+  searchOn = !!settings.searchEnabled;
+  $searchToggle.classList.toggle("on", searchOn);
   const win = await chrome.windows.getCurrent();
   myWindowId = win.id;
   const [tab] = await chrome.tabs.query({ active: true, windowId: myWindowId });

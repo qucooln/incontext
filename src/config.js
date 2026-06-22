@@ -33,6 +33,13 @@ export const DEFAULT_SETTINGS = {
   maxArticleChars: 24000,
   // 开发用：无 key 时走 mock，便于联调交互/grounding 逻辑。
   useMock: false,
+
+  // 联网搜索（路线1：借智谱 GLM 原生 web_search）。
+  // 侧栏「联网」开时，该次解释/追问改走 GLM 并启用联网搜索。
+  searchEnabled: false, // 「联网」开关默认状态
+  searchBaseURL: "https://open.bigmodel.cn/api/paas/v4",
+  searchModel: "glm-5.2",
+  searchApiKey: "", // 智谱 GLM key（联网用，BYOK）
 };
 
 export async function getSettings() {

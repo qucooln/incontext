@@ -30,6 +30,9 @@ async function load() {
   el("targetLang").value = s.targetLang;
   el("maxArticleChars").value = s.maxArticleChars;
   el("useMock").checked = s.useMock;
+  el("searchEnabled").checked = s.searchEnabled;
+  el("searchModel").value = s.searchModel;
+  el("searchApiKey").value = s.searchApiKey;
 }
 
 el("save").addEventListener("click", async () => {
@@ -41,6 +44,9 @@ el("save").addEventListener("click", async () => {
     targetLang: el("targetLang").value.trim() || "中文",
     maxArticleChars: parseInt(el("maxArticleChars").value, 10) || DEFAULT_SETTINGS.maxArticleChars,
     useMock: el("useMock").checked,
+    searchEnabled: el("searchEnabled").checked,
+    searchModel: el("searchModel").value.trim() || DEFAULT_SETTINGS.searchModel,
+    searchApiKey: el("searchApiKey").value.trim(),
   });
   el("status").textContent = "已保存 ✓";
   setTimeout(() => (el("status").textContent = ""), 2000);

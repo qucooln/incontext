@@ -47,8 +47,17 @@ kbd { background: #e5e7eb; border-radius: 3px; padding: 1px 5px; font-size: 11px
 @keyframes blink { 50% { opacity: 0; } }
 .ic-error { color: #dc2626; font-size: 13px; }
 
+.ic-toolbar {
+  display: flex; gap: 6px; padding: 6px 12px 0; background: #fff;
+}
+.ic-toggle {
+  font: inherit; font-size: 12px; padding: 3px 10px; border-radius: 12px;
+  border: 1px solid #d1d5db; background: #f3f4f6; color: #6b7280; cursor: pointer;
+}
+.ic-toggle.on { background: #2563eb; border-color: #2563eb; color: #fff; }
+
 .ic-footer {
-  display: flex; gap: 6px; padding: 10px 12px; background: #fff; border-top: 1px solid #e5e7eb;
+  display: flex; gap: 6px; padding: 8px 12px 10px; background: #fff; border-top: 1px solid #e5e7eb;
 }
 #ic-input {
   flex: 1; resize: none; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px;
