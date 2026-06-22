@@ -1,4 +1,5 @@
 import { PROVIDERS, getSettings, saveSettings, DEFAULT_SETTINGS } from "./config.js";
+import { streamChat } from "./llm.js";
 
 const el = (id) => document.getElementById(id);
 
@@ -53,6 +54,43 @@ function refreshSearchRadios() {
 el("serperApiKey").addEventListener("input", refreshSearchRadios);
 el("serpapiApiKey").addEventListener("input", refreshSearchRadios);
 el("tavilyApiKey").addEventListener("input", refreshSearchRadios);
+
+// 一键测试当前模型配置能否连通
+el("test-model").addEventListener("click", async () => {
+  const st = el("test-model-status");
+  const settings = {
+    provider: el("provider").value,
+    baseURL: el("baseURL").value.trim(),
+    model: el("model").value.trim(),
+    apiKey: el("apiKey").value.trim(),
+  };
+  if (!settings.apiKey) {
+    st.textContent = "请先填 API Key";
+    st.style.color = "#dc2626";
+    return;
+  }
+  st.textContent = "测试中…";
+  st.style.color = "#6b7280";
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 25000);
+  try {
+    let got = "";
+    await streamChat({
+      messages: [{ role: "user", content: "回复两个字：你好" }],
+      settings,
+      signal: ac.signal,
+      onDelta: (_d, f) => (got = f),
+    });
+    clearTimeout(timer);
+    st.textContent = got ? "✓ 连接成功：" + got.slice(0, 20) : "✓ 已连接（无输出）";
+    st.style.color = "#16a34a";
+  } catch (e) {
+    clearTimeout(timer);
+    const msg = e.name === "AbortError" ? "超时（25s）" : e.message || String(e);
+    st.textContent = "✗ " + msg.slice(0, 140);
+    st.style.color = "#dc2626";
+  }
+});
 
 async function load() {
   const s = await getSettings();

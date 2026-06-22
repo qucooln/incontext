@@ -51,6 +51,11 @@
       <div class="field">
         <label for="apiKey">API Key</label>
         <input id="apiKey" type="password" placeholder="sk-..." />
+        <div style="margin-top:8px">
+          <button id="test-model" type="button" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:6px;padding:6px 12px;font-size:13px;cursor:pointer">测试连接</button>
+          <span id="test-model-status" style="margin-left:10px;font-size:13px"></span>
+        </div>
+        <p class="hint">填好上面的服务商/模型/Key 后点一下，发个最小请求验证是否能连通。</p>
       </div>
       <div class="field">
         <label for="targetLang">解释输出语言</label>
