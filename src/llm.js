@@ -1,48 +1,28 @@
 // OpenAI 兼容的流式对话客户端。在 side panel（持久页面）中调用，避免 service worker 被回收。
-// 支持两种端点：常规模型（settings.baseURL/model/apiKey）与联网模型（settings.search*，借 GLM 原生 web_search）。
+// 始终使用主模型(settings.baseURL/model/apiKey，如 deepseek-v4-pro)。
+// 联网时由调用方先搜好资料，作为 extraContext 临时注入（不污染存储的对话历史）。
 
-function resolveEndpoint(settings, useSearch) {
-  if (useSearch) {
-    return {
-      baseURL: settings.searchBaseURL,
-      model: settings.searchModel,
-      apiKey: settings.searchApiKey,
-      search: true,
-    };
-  }
-  return { baseURL: settings.baseURL, model: settings.model, apiKey: settings.apiKey, search: false };
-}
-
-export async function streamChat({ messages, settings, onDelta, onThinking, signal, useSearch }) {
-  const ep = resolveEndpoint(settings, useSearch);
-
-  if (settings.useMock || !ep.apiKey) {
-    if (useSearch && !ep.apiKey) {
-      throw new Error("联网需要在设置里填「联网搜索 GLM Key」（智谱 key）");
-    }
+export async function streamChat({ messages, settings, onDelta, onThinking, signal, extraContext }) {
+  if (settings.useMock || !settings.apiKey) {
     return mockStream({ messages, onDelta, signal });
   }
 
-  const url = ep.baseURL.replace(/\/$/, "") + "/chat/completions";
-  const body = {
-    model: ep.model,
-    messages,
-    stream: true,
-  };
-  if (ep.search) {
-    // 智谱 GLM 原生联网搜索
-    body.tools = [{ type: "web_search", web_search: { enable: true, search_result: true } }];
-    // glm-5.2 是推理模型，先吐 reasoning_content，需给足 token 否则正式答案为空
-    body.max_tokens = 4096;
+  // 把联网资料作为一条临时 system 消息，插在最后一条用户消息之前；不改动传入的 messages。
+  let apiMessages = messages;
+  if (extraContext) {
+    apiMessages = [...messages];
+    const insertAt = Math.max(1, apiMessages.length - 1);
+    apiMessages.splice(insertAt, 0, { role: "system", content: extraContext });
   }
 
+  const url = settings.baseURL.replace(/\/$/, "") + "/chat/completions";
   const resp = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: "Bearer " + ep.apiKey,
+      Authorization: "Bearer " + settings.apiKey,
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ model: settings.model, messages: apiMessages, stream: true }),
     signal,
   });
 
@@ -70,7 +50,7 @@ export async function streamChat({ messages, settings, onDelta, onThinking, sign
       try {
         const json = JSON.parse(data);
         const delta = json.choices?.[0]?.delta || {};
-        // 推理模型的思考流，单独回调（可显示"检索/思考中"），不混入正式答案
+        // 推理模型(如 deepseek-reasoner)的思考流，单独回调，不混入正式答案
         if (delta.reasoning_content && onThinking) onThinking(delta.reasoning_content);
         if (delta.content) {
           full += delta.content;

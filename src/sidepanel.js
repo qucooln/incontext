@@ -1,5 +1,6 @@
 import { getSettings } from "./config.js";
 import { streamChat } from "./llm.js";
+import { webSearch, formatSearchResults } from "./search.js";
 import { buildInitialMessages } from "./prompt.js";
 import { renderMarkdown } from "./markdown.js";
 
@@ -103,7 +104,7 @@ async function clearPending(tabId) {
 }
 
 // ---------- 流式 ----------
-async function runStream() {
+async function runStream(query) {
   busy = true;
   $send.disabled = true;
   if (abortController) abortController.abort();
@@ -111,28 +112,39 @@ async function runStream() {
   const signal = abortController.signal;
   const tabAtStart = currentTabId;
 
-  const useSearch = searchOn;
+  const useSearch = searchOn && !!query;
   const bubble = addBubble("assistant");
   bubble.classList.add("ic-cursor");
-  if (useSearch) bubble.textContent = "🔍 联网检索中…";
   let acc = "";
-  let firstContent = true;
   try {
     const settings = await getSettings();
+
+    // 联网：先借智谱搜索拿资料，作为临时上下文喂给主模型（DeepSeek）。
+    let extraContext = "";
+    if (useSearch) {
+      bubble.textContent = "🔍 联网检索中…";
+      try {
+        const results = await webSearch(query, settings);
+        extraContext = formatSearchResults(results);
+        bubble.textContent = "✍️ 结合资料生成中…";
+      } catch (e) {
+        bubble.textContent = "（联网搜索失败，转为仅基于全文回答）";
+      }
+      if (signal.aborted) { bubble.remove(); busy = false; $send.disabled = false; return; }
+    }
+
     await streamChat({
       messages: conversation,
       settings,
       signal,
-      useSearch,
+      extraContext,
       onDelta: (_d, full) => {
         if (signal.aborted) return;
-        firstContent = false;
         acc = full;
         bubble.innerHTML = renderMarkdown(full);
         $messages.scrollTop = $messages.scrollHeight;
       },
     });
-    if (firstContent && acc === "") bubble.textContent = "";
     bubble.classList.remove("ic-cursor");
     if (tabAtStart === currentTabId) {
       conversation.push({ role: "assistant", content: acc });
@@ -156,7 +168,7 @@ async function startExplain(payload) {
   const settings = await getSettings();
   conversation = buildInitialMessages(payload, settings);
   await persist();
-  await runStream();
+  await runStream(payload.selection);
 }
 
 // ---------- tab 切换 ----------
@@ -208,7 +220,7 @@ async function sendFollowUp() {
   b.textContent = text;
   conversation.push({ role: "user", content: text });
   await persist();
-  await runStream();
+  await runStream(text);
 }
 
 $send.addEventListener("click", sendFollowUp);

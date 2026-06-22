@@ -52,19 +52,15 @@
     </div>
 
     <hr style="margin:24px 0;border:none;border-top:1px solid #e5e7eb" />
-    <h1 style="font-size:16px">联网搜索</h1>
-    <p class="hint">侧栏点「🔍 联网」时，该次回答改走智谱 GLM 并启用其原生联网搜索。需填智谱 GLM Key。</p>
+    <h1 style="font-size:16px">联网搜索（混合模式）</h1>
+    <p class="hint">侧栏点「🔍 联网」时：先用智谱搜索拿实时资料，再由你上面配置的主模型（如 deepseek-v4-pro）结合全文生成答案。智谱只当搜索引擎，答案仍出自主模型。需填智谱 Key。</p>
     <div class="field row">
       <input id="searchEnabled" type="checkbox" />
       <label for="searchEnabled" style="margin:0">默认开启「联网」开关</label>
     </div>
     <div class="field">
-      <label for="searchModel">联网模型（智谱）</label>
-      <input id="searchModel" type="text" placeholder="glm-5.2" />
-    </div>
-    <div class="field">
-      <label for="searchApiKey">联网搜索 GLM Key（智谱）</label>
-      <input id="searchApiKey" type="password" placeholder="智谱 open.bigmodel.cn 的 key" />
+      <label for="searchApiKey">联网搜索 Key（智谱 open.bigmodel.cn）</label>
+      <input id="searchApiKey" type="password" placeholder="智谱平台的 API Key" />
     </div>
 
     <button id="save">保存</button>
