@@ -21,6 +21,7 @@ let currentTabId = null;
 let conversation = []; // { role, content }[] 含 system，对应 currentTabId
 let currentPayload = null;
 const runs = new Map(); // tabId -> AbortController（每个 tab 各自的在跑请求）
+const runStatus = new Map(); // tabId -> 当前阶段文字（供切回时显示）
 let searchOn = false; // 「联网」开关
 let searchAvailable = false; // 是否配了搜索 key
 
@@ -66,6 +67,20 @@ function addBubble(role) {
   $messages.appendChild(wrap);
   $messages.scrollTop = $messages.scrollHeight;
   return bubble;
+}
+
+// 后台运行中的占位气泡（切回还在跑的 tab 时显示当前阶段）
+function appendStatusBubble(text) {
+  const b = addBubble("assistant");
+  b.classList.add("ic-cursor");
+  b.textContent = text || "⏳ 正在生成…";
+  return b;
+}
+
+// 设置某个 run 的当前阶段：记到 runStatus，若正在看该 tab 则更新气泡
+function setPhase(tabId, bubble, text) {
+  runStatus.set(tabId, text);
+  if (tabId === currentTabId) bubble.textContent = text;
 }
 
 function showSelectionHeader() {
@@ -139,7 +154,7 @@ async function runStream(tabId, payload, convo, queryCtx) {
     let results = [];
     if (useSearch) {
       try {
-        bubble.textContent = "🔎 正在理解上下文、生成检索词…";
+        setPhase(tabId, bubble, "🔎 正在理解上下文、生成检索词…");
         let sq;
         try {
           sq = await generateSearchQuery(queryCtx, settings);
@@ -156,10 +171,10 @@ async function runStream(tabId, payload, convo, queryCtx) {
           }
           bubble.textContent = "";
         } else {
-          bubble.textContent = "🔍 联网检索：" + sq.join("  ·  ");
+          setPhase(tabId, bubble, "🔍 联网检索：" + sq.join("  ·  "));
           results = await multiSearch(sq, settings);
           extraContext = formatSearchResults(results);
-          bubble.textContent = "✍️ 结合资料生成中…";
+          setPhase(tabId, bubble, "✍️ 结合资料生成中…");
         }
       } catch (e) {
         if (viewing()) {
@@ -180,6 +195,7 @@ async function runStream(tabId, payload, convo, queryCtx) {
       extraContext,
       onDelta: (_d, full) => {
         if (signal.aborted) return;
+        if (runStatus.has(tabId)) runStatus.delete(tabId); // 开始出字，阶段提示结束
         acc = full;
         bubble.innerHTML = renderMarkdown(full);
         if (viewing()) $messages.scrollTop = $messages.scrollHeight;
@@ -204,7 +220,10 @@ async function runStream(tabId, payload, convo, queryCtx) {
     if (e.name === "AbortError") bubble.remove();
     else bubble.innerHTML = `<span class="ic-error">出错了：${e.message}</span>`;
   } finally {
-    if (runs.get(tabId) === controller) runs.delete(tabId);
+    if (runs.get(tabId) === controller) {
+      runs.delete(tabId);
+      runStatus.delete(tabId);
+    }
     refreshSendState();
   }
 }
@@ -244,6 +263,8 @@ async function loadTab(tabId) {
     currentPayload = conv.payload;
     conversation = conv.messages;
     renderConversation();
+    // 该 tab 还在后台跑（切回时答案尚未生成完）→ 显示进度占位，别空着
+    if (runs.has(tabId)) appendStatusBubble(runStatus.get(tabId));
   } else {
     showEmpty();
   }
