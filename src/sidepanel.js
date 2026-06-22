@@ -134,7 +134,12 @@ async function runStream(query) {
         extraContext = formatSearchResults(results);
         bubble.textContent = "✍️ 结合资料生成中…";
       } catch (e) {
-        bubble.textContent = "（联网搜索失败，转为仅基于全文回答）";
+        // 暴露真实原因，便于排查（网络不通 / key 错 / 配额等）
+        const warn = document.createElement("div");
+        warn.style.cssText = "color:#b45309;font-size:12px;margin:0 12px 8px;white-space:pre-wrap;";
+        warn.textContent = "⚠ 联网搜索失败：" + (e.message || e) + "\n（本次仅基于全文回答）";
+        $messages.insertBefore(warn, bubble.parentElement);
+        bubble.textContent = "";
       }
       if (signal.aborted) { bubble.remove(); busy = false; $send.disabled = false; return; }
     }
