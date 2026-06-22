@@ -28,9 +28,14 @@ el("provider").addEventListener("change", (e) => {
 });
 
 // ---- 搜索引擎单选项：填了 key 才能选 ----
+const SEARCH_PROVS = ["serper", "serpapi", "tavily"];
 function refreshSearchRadios() {
-  const map = { serper: el("serperApiKey").value.trim(), tavily: el("tavilyApiKey").value.trim() };
-  for (const prov of ["serper", "tavily"]) {
+  const map = {
+    serper: el("serperApiKey").value.trim(),
+    serpapi: el("serpapiApiKey").value.trim(),
+    tavily: el("tavilyApiKey").value.trim(),
+  };
+  for (const prov of SEARCH_PROVS) {
     const radio = el("prov-" + prov);
     const line = el("line-" + prov);
     const enabled = !!map[prov];
@@ -41,11 +46,12 @@ function refreshSearchRadios() {
   // 若当前没有选中但有可用项，自动选第一个有 key 的
   const checked = document.querySelector('input[name="searchProvider"]:checked');
   if (!checked) {
-    const first = ["serper", "tavily"].find((p) => map[p]);
+    const first = SEARCH_PROVS.find((p) => map[p]);
     if (first) el("prov-" + first).checked = true;
   }
 }
 el("serperApiKey").addEventListener("input", refreshSearchRadios);
+el("serpapiApiKey").addEventListener("input", refreshSearchRadios);
 el("tavilyApiKey").addEventListener("input", refreshSearchRadios);
 
 async function load() {
@@ -60,6 +66,7 @@ async function load() {
 
   el("searchEnabled").checked = s.searchEnabled;
   el("serperApiKey").value = s.serperApiKey;
+  el("serpapiApiKey").value = s.serpapiApiKey;
   el("tavilyApiKey").value = s.tavilyApiKey;
   const radio = el("prov-" + s.searchProvider);
   if (radio) radio.checked = true;
@@ -79,6 +86,7 @@ el("save").addEventListener("click", async () => {
     searchEnabled: el("searchEnabled").checked,
     searchProvider: checked ? checked.value : DEFAULT_SETTINGS.searchProvider,
     serperApiKey: el("serperApiKey").value.trim(),
+    serpapiApiKey: el("serpapiApiKey").value.trim(),
     tavilyApiKey: el("tavilyApiKey").value.trim(),
   });
   el("status").textContent = "已保存 ✓";

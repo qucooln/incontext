@@ -37,8 +37,9 @@ export const DEFAULT_SETTINGS = {
   // 联网搜索（路线1：借智谱 GLM 原生 web_search）。
   // 侧栏「联网」开时，该次解释/追问改走 GLM 并启用联网搜索。
   searchEnabled: false, // 「联网」开关默认状态
-  searchProvider: "serper", // serper(真Google) | tavily
+  searchProvider: "serper", // serper | serpapi | tavily（均为 Google/Web 搜索）
   serperApiKey: "", // serper.dev 的 key
+  serpapiApiKey: "", // serpapi.com 的 key（与 serper 不是一家）
   tavilyApiKey: "", // tavily.com 的 key
 };
 

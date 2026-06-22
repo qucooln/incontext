@@ -79,18 +79,27 @@
         <label>使用的搜索引擎</label>
         <div class="radio-line" id="line-serper">
           <input type="radio" name="searchProvider" id="prov-serper" value="serper" />
-          <label for="prov-serper" style="margin:0;font-weight:400">Serper（真 Google，需外网）</label>
+          <label for="prov-serper" style="margin:0;font-weight:400">Serper（serper.dev · Google）</label>
+        </div>
+        <div class="radio-line" id="line-serpapi">
+          <input type="radio" name="searchProvider" id="prov-serpapi" value="serpapi" />
+          <label for="prov-serpapi" style="margin:0;font-weight:400">SerpAPI（serpapi.com · Google）</label>
         </div>
         <div class="radio-line" id="line-tavily">
           <input type="radio" name="searchProvider" id="prov-tavily" value="tavily" />
-          <label for="prov-tavily" style="margin:0;font-weight:400">Tavily（LLM 友好，需外网）</label>
+          <label for="prov-tavily" style="margin:0;font-weight:400">Tavily（LLM 友好）</label>
         </div>
       </div>
 
       <div class="field">
         <label for="serperApiKey">Serper API Key</label>
         <input id="serperApiKey" type="password" placeholder="serper.dev 的 key" />
-        <p class="hint">去 <a href="https://serper.dev" target="_blank">serper.dev</a> 注册，免费 2500 次。</p>
+        <p class="hint">去 <a href="https://serper.dev" target="_blank">serper.dev</a> 注册，免费 2500 次。（注意别和 serpapi.com 搞混）</p>
+      </div>
+      <div class="field">
+        <label for="serpapiApiKey">SerpAPI API Key</label>
+        <input id="serpapiApiKey" type="password" placeholder="serpapi.com 的 key" />
+        <p class="hint">去 <a href="https://serpapi.com" target="_blank">serpapi.com</a> 注册，免费 100 次/月。</p>
       </div>
       <div class="field">
         <label for="tavilyApiKey">Tavily API Key</label>

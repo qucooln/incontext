@@ -25,6 +25,26 @@ async function searchSerper(query, key) {
   }));
 }
 
+async function searchSerpapi(query, key) {
+  // serpapi.com（注意：与 serper.dev 是两家！）。key 走 query 参数。
+  const u = new URL("https://serpapi.com/search.json");
+  u.searchParams.set("q", query);
+  u.searchParams.set("engine", "google");
+  u.searchParams.set("hl", "zh-cn");
+  u.searchParams.set("num", "10");
+  u.searchParams.set("api_key", key);
+  const resp = await fetch(u.toString());
+  if (!resp.ok) throw new Error(`SerpAPI ${resp.status}: ${(await resp.text()).slice(0, 200)}`);
+  const d = await resp.json();
+  if (d.error) throw new Error("SerpAPI: " + d.error);
+  return (d.organic_results || []).map((r) => ({
+    title: r.title,
+    link: r.link,
+    content: r.snippet || "",
+    media: r.source || hostOf(r.link),
+  }));
+}
+
 async function searchTavily(query, key) {
   const resp = await fetch("https://api.tavily.com/search", {
     method: "POST",
@@ -43,6 +63,7 @@ async function searchTavily(query, key) {
 
 const PROVIDERS = {
   serper: { label: "Serper（Google）", fn: searchSerper, keyField: "serperApiKey" },
+  serpapi: { label: "SerpAPI（Google）", fn: searchSerpapi, keyField: "serpapiApiKey" },
   tavily: { label: "Tavily", fn: searchTavily, keyField: "tavilyApiKey" },
 };
 
