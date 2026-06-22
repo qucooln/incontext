@@ -12,8 +12,8 @@ function inline(s) {
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>")
     .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
-    // 联网引用 [n] → 上标样式（链接已先被消费，这里只会命中纯数字角标）
-    .replace(/\[(\d{1,2})\]/g, '<sup class="ic-cite">$1</sup>');
+    // 联网引用 [n] / 【n】 → 上标样式（链接已先被消费，这里只会命中纯数字角标）
+    .replace(/[\[【](\d{1,2})[\]】]/g, '<sup class="ic-cite">$1</sup>');
 }
 
 export function renderMarkdown(md) {

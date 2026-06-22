@@ -37,9 +37,9 @@ export const DEFAULT_SETTINGS = {
   // 联网搜索（路线1：借智谱 GLM 原生 web_search）。
   // 侧栏「联网」开时，该次解释/追问改走 GLM 并启用联网搜索。
   searchEnabled: false, // 「联网」开关默认状态
-  searchBaseURL: "https://open.bigmodel.cn/api/paas/v4",
-  searchModel: "glm-5.2",
-  searchApiKey: "", // 智谱 GLM key（联网用，BYOK）
+  searchProvider: "serper", // serper(真Google) | tavily | bocha(国内直连) | zhipu
+  searchApiKey: "", // 对应所选搜索引擎的 key（BYOK）
+  searchBaseURL: "https://open.bigmodel.cn/api/paas/v4", // 仅 zhipu 用
 };
 
 export async function getSettings() {

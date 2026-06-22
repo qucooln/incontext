@@ -53,14 +53,23 @@
 
     <hr style="margin:24px 0;border:none;border-top:1px solid #e5e7eb" />
     <h1 style="font-size:16px">联网搜索（混合模式）</h1>
-    <p class="hint">侧栏点「🔍 联网」时：先用智谱搜索拿实时资料，再由你上面配置的主模型（如 deepseek-v4-pro）结合全文生成答案。智谱只当搜索引擎，答案仍出自主模型。需填智谱 Key。</p>
+    <p class="hint">侧栏点「🔍 联网」时：先用搜索引擎拿实时资料，再由上面配置的主模型（如 deepseek-v4-pro）结合全文生成答案并标注来源。搜索引擎只取数据，答案仍出自主模型。</p>
     <div class="field row">
       <input id="searchEnabled" type="checkbox" />
       <label for="searchEnabled" style="margin:0">默认开启「联网」开关</label>
     </div>
     <div class="field">
-      <label for="searchApiKey">联网搜索 Key（智谱 open.bigmodel.cn）</label>
-      <input id="searchApiKey" type="password" placeholder="智谱平台的 API Key" />
+      <label for="searchProvider">搜索引擎</label>
+      <select id="searchProvider">
+        <option value="serper">Serper（真 Google，需外网）</option>
+        <option value="tavily">Tavily（LLM 友好，需外网）</option>
+        <option value="bocha">博查 Bocha（国内直连，中文好）</option>
+        <option value="zhipu">智谱（国内，较弱）</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="searchApiKey">搜索引擎 API Key</label>
+      <input id="searchApiKey" type="password" placeholder="对应所选搜索引擎平台的 key" />
     </div>
 
     <button id="save">保存</button>

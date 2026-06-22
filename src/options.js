@@ -31,6 +31,7 @@ async function load() {
   el("maxArticleChars").value = s.maxArticleChars;
   el("useMock").checked = s.useMock;
   el("searchEnabled").checked = s.searchEnabled;
+  el("searchProvider").value = s.searchProvider;
   el("searchApiKey").value = s.searchApiKey;
 }
 
@@ -44,6 +45,7 @@ el("save").addEventListener("click", async () => {
     maxArticleChars: parseInt(el("maxArticleChars").value, 10) || DEFAULT_SETTINGS.maxArticleChars,
     useMock: el("useMock").checked,
     searchEnabled: el("searchEnabled").checked,
+    searchProvider: el("searchProvider").value,
     searchApiKey: el("searchApiKey").value.trim(),
   });
   el("status").textContent = "已保存 ✓";
