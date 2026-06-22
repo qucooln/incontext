@@ -1,5 +1,5 @@
 import { getSettings } from "./config.js";
-import { streamChat } from "./llm.js";
+import { streamChat, generateSearchQuery } from "./llm.js";
 import { webSearch, formatSearchResults, buildSourcesMarkdown, hasAnySearchKey } from "./search.js";
 import { buildInitialMessages } from "./prompt.js";
 import { renderMarkdown } from "./markdown.js";
@@ -109,7 +109,8 @@ async function clearPending(tabId) {
 }
 
 // ---------- 流式 ----------
-async function runStream(query) {
+// queryCtx: { selection, title, before, after, question }（用于联网时生成检索词）
+async function runStream(queryCtx) {
   busy = true;
   $send.disabled = true;
   if (abortController) abortController.abort();
@@ -117,24 +118,39 @@ async function runStream(query) {
   const signal = abortController.signal;
   const tabAtStart = currentTabId;
 
-  const useSearch = searchOn && !!query;
+  const useSearch = searchOn && !!(queryCtx && (queryCtx.question || queryCtx.selection));
   const bubble = addBubble("assistant");
   bubble.classList.add("ic-cursor");
   let acc = "";
   try {
     const settings = await getSettings();
 
-    // 联网：先借智谱搜索拿资料，作为临时上下文喂给主模型（DeepSeek）。
+    // 联网：先理解上下文生成精准检索词 → 搜索 → 资料作为临时上下文喂给主模型（DeepSeek）。
     let extraContext = "";
     let results = [];
     if (useSearch) {
-      bubble.textContent = "🔍 联网检索中…";
       try {
-        results = await webSearch(query, settings);
-        extraContext = formatSearchResults(results);
-        bubble.textContent = "✍️ 结合资料生成中…";
+        bubble.textContent = "🔎 正在理解上下文、生成检索词…";
+        let sq;
+        try {
+          sq = await generateSearchQuery(queryCtx, settings);
+        } catch {
+          sq = queryCtx.question || queryCtx.selection; // 生成失败回退原文
+        }
+        if (sq === null) {
+          // 模型判断无需联网，直接基于全文答；给个轻提示避免疑惑
+          const note = document.createElement("div");
+          note.style.cssText = "color:#9ca3af;font-size:12px;margin:0 12px 8px;";
+          note.textContent = "ℹ 本段判断无需联网，基于全文解释";
+          $messages.insertBefore(note, bubble.parentElement);
+          bubble.textContent = "";
+        } else {
+          bubble.textContent = "🔍 联网检索：" + sq;
+          results = await webSearch(sq, settings);
+          extraContext = formatSearchResults(results);
+          bubble.textContent = "✍️ 结合资料生成中…";
+        }
       } catch (e) {
-        // 暴露真实原因，便于排查（网络不通 / key 错 / 配额等）
         const warn = document.createElement("div");
         warn.style.cssText = "color:#b45309;font-size:12px;margin:0 12px 8px;white-space:pre-wrap;";
         warn.textContent = "⚠ 联网搜索失败：" + (e.message || e) + "\n（本次仅基于全文回答）";
@@ -184,7 +200,13 @@ async function startExplain(payload) {
   const settings = await getSettings();
   conversation = buildInitialMessages(payload, settings);
   await persist();
-  await runStream(payload.selection);
+  await runStream({
+    selection: payload.selection,
+    title: payload.title,
+    before: payload.before,
+    after: payload.after,
+    question: "",
+  });
 }
 
 // ---------- tab 切换 ----------
@@ -236,7 +258,13 @@ async function sendFollowUp() {
   b.textContent = text;
   conversation.push({ role: "user", content: text });
   await persist();
-  await runStream(text);
+  await runStream({
+    selection: currentPayload?.selection || "",
+    title: currentPayload?.title || "",
+    before: currentPayload?.before || "",
+    after: currentPayload?.after || "",
+    question: text,
+  });
 }
 
 $send.addEventListener("click", sendFollowUp);
