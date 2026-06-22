@@ -15,20 +15,21 @@ chrome.runtime.onInstalled.addListener(() => {
     .catch(() => {});
 });
 
-// 把某个 tab 的新选区写入待处理区，并通知侧栏（带 tabId）。
-async function setPending(tabId, payload) {
+// 把某个 tab 的新选区写入待处理区，并通知侧栏（带 tabId + windowId）。
+// windowId 用于多窗口(双屏)场景：让选区只被它所在窗口的侧栏处理。
+async function setPending(tabId, windowId, payload) {
   const { pendingSelections = {} } = await chrome.storage.session.get("pendingSelections");
   pendingSelections[tabId] = payload;
   await chrome.storage.session.set({ pendingSelections });
-  chrome.runtime.sendMessage({ type: "NEW_SELECTION", tabId, payload }).catch(() => {});
+  chrome.runtime.sendMessage({ type: "NEW_SELECTION", tabId, windowId, payload }).catch(() => {});
 }
 
 // 让内容脚本抽全文；抽不到（file:// 未授权、内容脚本未注入）则用兜底文本。
-function gatherAndExplain(tabId, fallbackSelection, pageUrl) {
+function gatherAndExplain(tabId, windowId, fallbackSelection, pageUrl) {
   chrome.tabs.sendMessage(tabId, { type: "TRIGGER_EXPLAIN" }, (resp) => {
     if (chrome.runtime.lastError || !resp?.ok) {
       if (fallbackSelection && fallbackSelection.trim()) {
-        setPending(tabId, {
+        setPending(tabId, windowId, {
           selection: fallbackSelection.trim(),
           before: "", after: "", article: "", title: "",
           url: pageUrl || "", ts: Date.now(),
@@ -49,7 +50,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     const tabId = sender.tab?.id;
     if (tabId != null) {
       openPanel(tabId);
-      setPending(tabId, msg.payload);
+      setPending(tabId, sender.tab?.windowId, msg.payload);
     }
     sendResponse?.({ ok: true });
   }
@@ -58,13 +59,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId !== "incontext-explain" || tab?.id == null) return;
   openPanel(tab.id);
-  gatherAndExplain(tab.id, info.selectionText, info.pageUrl);
+  gatherAndExplain(tab.id, tab.windowId, info.selectionText, info.pageUrl);
 });
 
 chrome.commands.onCommand.addListener((command, tab) => {
   if (command !== "explain-selection" || tab?.id == null) return;
   openPanel(tab.id);
-  gatherAndExplain(tab.id, "", tab.url);
+  gatherAndExplain(tab.id, tab.windowId, "", tab.url);
 });
 
 // tab 关闭时清理它的选区与对话，避免 storage 堆积。

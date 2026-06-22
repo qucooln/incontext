@@ -326,6 +326,8 @@ $input.addEventListener("input", () => {
 // 新选区通知：选区一定来自用户正在操作的 tab，直接信任并切到它（避免 getCurrent 判错导致静默丢弃）。
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === "NEW_SELECTION" && msg.tabId != null) {
+    // 多窗口(双屏)：只处理属于本侧栏所在窗口的选区，否则会串屏
+    if (myWindowId != null && msg.windowId != null && msg.windowId !== myWindowId) return;
     // 切到该 tab 显示并开新解释；同 tab 的旧请求由 runStream 内部按 tab 打断
     currentTabId = msg.tabId;
     clearPending(msg.tabId);
