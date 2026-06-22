@@ -82,6 +82,12 @@ async function startExplain(payload) {
   clearMessages();
   $selection.hidden = false;
   $selection.textContent = payload.selection;
+  if (payload.note) {
+    const n = document.createElement("div");
+    n.style.cssText = "color:#b45309;font-size:12px;margin:6px 12px 0;";
+    n.textContent = "⚠ " + payload.note;
+    $messages.appendChild(n);
+  }
 
   const settings = await getSettings();
   conversation = buildInitialMessages(payload, settings);
