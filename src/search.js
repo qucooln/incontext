@@ -85,8 +85,31 @@ export function effectiveProvider(settings) {
 
 export async function webSearch(query, settings) {
   const provider = effectiveProvider(settings);
-  if (!provider) throw new Error("未配置搜索引擎 key，请到设置「搜索」页填 Serper 或 Tavily 的 key");
+  if (!provider) throw new Error("未配置搜索引擎 key，请到设置「搜索」页填 key");
   return PROVIDERS[provider].fn(query, providerKey(settings, provider));
+}
+
+// 多查询（中文+英文）并发搜索，合并去重。全部失败才抛错。
+export async function multiSearch(queries, settings) {
+  const list = (Array.isArray(queries) ? queries : [queries]).filter(Boolean);
+  if (!list.length) return [];
+  const settled = await Promise.allSettled(list.map((q) => webSearch(q, settings)));
+  const ok = settled.filter((s) => s.status === "fulfilled").map((s) => s.value);
+  if (!ok.length) {
+    const rej = settled.find((s) => s.status === "rejected");
+    throw rej ? rej.reason : new Error("搜索无结果");
+  }
+  const seen = new Set();
+  const merged = [];
+  for (const arr of ok) {
+    for (const r of arr) {
+      const k = (r.link || r.title || "").trim();
+      if (!k || seen.has(k)) continue;
+      seen.add(k);
+      merged.push(r);
+    }
+  }
+  return merged.slice(0, 8);
 }
 
 // 喂给主模型的资料块（带编号，强制要求模型在引用处标注 [n]）。

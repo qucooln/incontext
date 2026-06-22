@@ -2,17 +2,21 @@
 // 始终使用主模型(settings.baseURL/model/apiKey，如 deepseek-v4-pro)。
 // 联网时由调用方先搜好资料，作为 extraContext 临时注入（不污染存储的对话历史）。
 
-// 联网前：先用主模型把"选区+上下文+意图"还原成一个精准的搜索查询（而非孤立的原文）。
-// 返回查询字符串；若判断无需联网返回 null；出错时调用方应回退到原文。
+// 联网前：先用主模型把"选区+上下文+意图"还原成精准搜索查询（含原文版+英文版）。
+// 返回查询字符串数组；若判断无需联网返回 null；出错时调用方应回退到原文。
 export async function generateSearchQuery(ctx, settings) {
   const { selection = "", title = "", before = "", after = "", question = "" } = ctx;
-  const fallback = (question || selection || "").trim().slice(0, 80);
-  if (settings.useMock || !settings.apiKey) return fallback;
+  const fallback = [(question || selection || "").trim().slice(0, 80)].filter(Boolean);
+  if (settings.useMock || !settings.apiKey) return fallback.length ? fallback : null;
 
   const sys =
-    "你是搜索查询生成器。根据用户正在阅读的文章片段与意图，生成一个最有助于补充背景/事实/最新信息的网络搜索查询。\n" +
-    "规则：1) 只输出查询词本身，一行，不要引号、不要解释；2) 必须结合上下文还原指代与主题，不要只用孤立的词；" +
-    "3) 若这段内容无需联网（纯文章内部含义、纯常识、纯主观解读），只输出 NONE。";
+    "你是搜索查询生成器。根据用户正在阅读的文章片段与意图，生成最有助于补充背景/事实/最新信息的网络搜索查询。\n" +
+    "规则：\n" +
+    "1) 输出 1-2 行，每行一个查询，不要编号、引号或解释；\n" +
+    "2) 必须结合上下文还原指代与主题，不要只用孤立的词；\n" +
+    "3) 第一行用文章原文语言；第二行给出对应的【英文版】查询（是该主题在英文世界的通行说法/术语，不是逐字翻译），" +
+    "以补全中文源覆盖不到的信息；若主题本身已是英文、或为无英文对应的中文专名，可只给一行；\n" +
+    "4) 若这段内容无需联网（纯文章内部含义、纯常识、纯主观解读），只输出 NONE。";
   const user =
     `文章标题：${title}\n选中段：${selection}\n` +
     `前后文：…${(before || "").slice(-200)}【选区】${(after || "").slice(0, 200)}…\n` +
@@ -28,7 +32,7 @@ export async function generateSearchQuery(ctx, settings) {
         { role: "system", content: sys },
         { role: "user", content: user },
       ],
-      max_tokens: 300,
+      max_tokens: 400,
       stream: false,
     }),
   });
@@ -36,8 +40,12 @@ export async function generateSearchQuery(ctx, settings) {
   const d = await resp.json();
   const content = (d.choices?.[0]?.message?.content || "").trim();
   if (/^none$/i.test(content)) return null;
-  const q = content.replace(/^["'「『]+|["'」』]+$/g, "").split("\n")[0].trim();
-  return q || fallback;
+  const queries = content
+    .split("\n")
+    .map((l) => l.replace(/^[-*\d.、]+\s*/, "").replace(/^["'「『]+|["'」』]+$/g, "").trim())
+    .filter(Boolean)
+    .slice(0, 2);
+  return queries.length ? queries : fallback.length ? fallback : null;
 }
 
 export async function streamChat({ messages, settings, onDelta, onThinking, signal, extraContext }) {

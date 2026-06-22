@@ -1,6 +1,6 @@
 import { getSettings } from "./config.js";
 import { streamChat, generateSearchQuery } from "./llm.js";
-import { webSearch, formatSearchResults, buildSourcesMarkdown, hasAnySearchKey } from "./search.js";
+import { multiSearch, formatSearchResults, buildSourcesMarkdown, hasAnySearchKey } from "./search.js";
 import { buildInitialMessages } from "./prompt.js";
 import { renderMarkdown } from "./markdown.js";
 
@@ -133,11 +133,11 @@ async function runStream(queryCtx) {
         bubble.textContent = "🔎 正在理解上下文、生成检索词…";
         let sq;
         try {
-          sq = await generateSearchQuery(queryCtx, settings);
+          sq = await generateSearchQuery(queryCtx, settings); // string[] | null
         } catch {
-          sq = queryCtx.question || queryCtx.selection; // 生成失败回退原文
+          sq = [queryCtx.question || queryCtx.selection].filter(Boolean); // 生成失败回退原文
         }
-        if (sq === null) {
+        if (sq === null || (Array.isArray(sq) && !sq.length)) {
           // 模型判断无需联网，直接基于全文答；给个轻提示避免疑惑
           const note = document.createElement("div");
           note.style.cssText = "color:#9ca3af;font-size:12px;margin:0 12px 8px;";
@@ -145,8 +145,8 @@ async function runStream(queryCtx) {
           $messages.insertBefore(note, bubble.parentElement);
           bubble.textContent = "";
         } else {
-          bubble.textContent = "🔍 联网检索：" + sq;
-          results = await webSearch(sq, settings);
+          bubble.textContent = "🔍 联网检索：" + sq.join("  ·  ");
+          results = await multiSearch(sq, settings);
           extraContext = formatSearchResults(results);
           bubble.textContent = "✍️ 结合资料生成中…";
         }
