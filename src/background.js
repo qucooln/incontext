@@ -1,6 +1,6 @@
 // Background service worker：选区数据中转 + 打开侧栏 + 右键菜单/快捷键触发。
-// 关键：sidePanel.open() 必须在用户手势的同步调用栈里执行，所以在
-// contextMenu / command 处理器的第一时间就 open，再去抽全文。
+// 状态按 tabId 存：每个标签页各自一份待解释选区(pendingSelections)与对话(conversations)。
+// 关键：sidePanel.open() 必须在用户手势的同步调用栈里执行。
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.removeAll(() => {
@@ -15,17 +15,20 @@ chrome.runtime.onInstalled.addListener(() => {
     .catch(() => {});
 });
 
-async function storeAndBroadcast(payload) {
-  await chrome.storage.session.set({ currentPayload: payload });
-  chrome.runtime.sendMessage({ type: "NEW_SELECTION", payload }).catch(() => {});
+// 把某个 tab 的新选区写入待处理区，并通知侧栏（带 tabId）。
+async function setPending(tabId, payload) {
+  const { pendingSelections = {} } = await chrome.storage.session.get("pendingSelections");
+  pendingSelections[tabId] = payload;
+  await chrome.storage.session.set({ pendingSelections });
+  chrome.runtime.sendMessage({ type: "NEW_SELECTION", tabId, payload }).catch(() => {});
 }
 
-// 让内容脚本抽全文；抽不到（如 file:// 未授权、内容脚本未注入）则用兜底文本。
+// 让内容脚本抽全文；抽不到（file:// 未授权、内容脚本未注入）则用兜底文本。
 function gatherAndExplain(tabId, fallbackSelection, pageUrl) {
   chrome.tabs.sendMessage(tabId, { type: "TRIGGER_EXPLAIN" }, (resp) => {
     if (chrome.runtime.lastError || !resp?.ok) {
       if (fallbackSelection && fallbackSelection.trim()) {
-        storeAndBroadcast({
+        setPending(tabId, {
           selection: fallbackSelection.trim(),
           before: "", after: "", article: "", title: "",
           url: pageUrl || "", ts: Date.now(),
@@ -38,34 +41,41 @@ function gatherAndExplain(tabId, fallbackSelection, pageUrl) {
 }
 
 function openPanel(tabId) {
-  // 必须同步调用以保留用户手势
-  return chrome.sidePanel.open({ tabId }).catch(() => {});
+  return chrome.sidePanel.open({ tabId }).catch(() => {}); // 必须同步调用以保留用户手势
 }
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === "EXPLAIN" && msg.payload) {
-    // 来自划词浮按钮：侧栏若已开则直接刷新；尝试 open（手势可能已丢，失败则需先开侧栏）
     const tabId = sender.tab?.id;
-    if (tabId != null) openPanel(tabId);
-    storeAndBroadcast(msg.payload);
+    if (tabId != null) {
+      openPanel(tabId);
+      setPending(tabId, msg.payload);
+    }
     sendResponse?.({ ok: true });
-  }
-  if (msg.type === "GET_PAYLOAD") {
-    chrome.storage.session.get("currentPayload").then((r) => {
-      sendResponse({ payload: r.currentPayload || null });
-    });
-    return true; // async
   }
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId !== "incontext-explain" || tab?.id == null) return;
-  openPanel(tab.id); // 手势内同步开侧栏
+  openPanel(tab.id);
   gatherAndExplain(tab.id, info.selectionText, info.pageUrl);
 });
 
 chrome.commands.onCommand.addListener((command, tab) => {
   if (command !== "explain-selection" || tab?.id == null) return;
-  openPanel(tab.id); // 手势内同步开侧栏
+  openPanel(tab.id);
   gatherAndExplain(tab.id, "", tab.url);
+});
+
+// tab 关闭时清理它的选区与对话，避免 storage 堆积。
+chrome.tabs.onRemoved.addListener(async (tabId) => {
+  const { conversations = {}, pendingSelections = {} } = await chrome.storage.session.get([
+    "conversations",
+    "pendingSelections",
+  ]);
+  if (tabId in conversations || tabId in pendingSelections) {
+    delete conversations[tabId];
+    delete pendingSelections[tabId];
+    await chrome.storage.session.set({ conversations, pendingSelections });
+  }
 });
