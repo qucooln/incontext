@@ -2,6 +2,89 @@
 // 始终使用主模型(settings.baseURL/model/apiKey，如 deepseek-v4-pro)。
 // 联网时由调用方先搜好资料，作为 extraContext 临时注入（不污染存储的对话历史）。
 
+// Anthropic Claude 不走 OpenAI 协议：/v1/messages、x-api-key、system 分离、SSE 格式不同。
+function isAnthropic(settings) {
+  return (settings.baseURL || "").includes("anthropic.com") || settings.provider === "anthropic";
+}
+
+// 把 OpenAI 风格 messages 转成 Anthropic 格式：system 抽出合并，其余保留。
+function toAnthropic(messages) {
+  const system = [];
+  const msgs = [];
+  for (const m of messages) {
+    if (m.role === "system") system.push(m.content);
+    else msgs.push({ role: m.role, content: m.content });
+  }
+  return { system: system.join("\n\n"), messages: msgs };
+}
+
+async function anthropicChat({ messages, settings, onDelta, signal, extraContext, stream, maxTokens }) {
+  const all = extraContext ? [...messages, { role: "system", content: extraContext }] : messages;
+  const { system, messages: am } = toAnthropic(all);
+  const url = settings.baseURL.replace(/\/$/, "") + "/messages";
+  const body = { model: settings.model, max_tokens: maxTokens || 4096, messages: am, stream: !!stream };
+  if (system) body.system = system;
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": settings.apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true", // 允许扩展页直连
+    },
+    body: JSON.stringify(body),
+    signal,
+  });
+  if (!resp.ok) throw new Error(`Anthropic ${resp.status}: ${(await resp.text()).slice(0, 300)}`);
+  if (!stream) {
+    const d = await resp.json();
+    return (d.content || []).map((b) => b.text || "").join("");
+  }
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let full = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+    for (const line of lines) {
+      const t = line.trim();
+      if (!t.startsWith("data:")) continue;
+      const data = t.slice(5).trim();
+      if (!data || data === "[DONE]") continue;
+      try {
+        const j = JSON.parse(data);
+        if (j.type === "content_block_delta" && j.delta?.type === "text_delta") {
+          full += j.delta.text;
+          onDelta(j.delta.text, full);
+        }
+      } catch {
+        // 忽略
+      }
+    }
+  }
+  return full;
+}
+
+// 非流式补全，返回文本。OpenAI / Anthropic 自动分流。
+async function completeText(messages, settings, maxTokens) {
+  if (isAnthropic(settings)) {
+    return anthropicChat({ messages, settings, stream: false, maxTokens });
+  }
+  const url = settings.baseURL.replace(/\/$/, "") + "/chat/completions";
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + settings.apiKey },
+    body: JSON.stringify({ model: settings.model, messages, max_tokens: maxTokens, stream: false }),
+  });
+  if (!resp.ok) throw new Error(`查询生成 ${resp.status}: ${(await resp.text()).slice(0, 150)}`);
+  const d = await resp.json();
+  return d.choices?.[0]?.message?.content || "";
+}
+
 // 联网前：先用主模型把"选区+上下文+意图"还原成精准搜索查询（含原文版+英文版）。
 // 返回查询字符串数组；若判断无需联网返回 null；出错时调用方应回退到原文。
 export async function generateSearchQuery(ctx, settings) {
@@ -28,23 +111,16 @@ export async function generateSearchQuery(ctx, settings) {
     `前后文：…${(before || "").slice(-200)}【选区】${(after || "").slice(0, 200)}…\n` +
     `用户问题：${question || "（解释这段在本文中的含义）"}`;
 
-  const url = settings.baseURL.replace(/\/$/, "") + "/chat/completions";
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: "Bearer " + settings.apiKey },
-    body: JSON.stringify({
-      model: settings.model,
-      messages: [
+  const content = (
+    await completeText(
+      [
         { role: "system", content: sys },
         { role: "user", content: user },
       ],
-      max_tokens: 400,
-      stream: false,
-    }),
-  });
-  if (!resp.ok) throw new Error(`查询生成 ${resp.status}: ${(await resp.text()).slice(0, 150)}`);
-  const d = await resp.json();
-  const content = (d.choices?.[0]?.message?.content || "").trim();
+      settings,
+      400
+    )
+  ).trim();
   if (/^none$/i.test(content)) return null;
   const queries = content
     .split("\n")
@@ -57,6 +133,11 @@ export async function generateSearchQuery(ctx, settings) {
 export async function streamChat({ messages, settings, onDelta, onThinking, signal, extraContext }) {
   if (settings.useMock || !settings.apiKey) {
     return mockStream({ messages, onDelta, signal });
+  }
+
+  // Anthropic Claude 走专用适配
+  if (isAnthropic(settings)) {
+    return anthropicChat({ messages, settings, onDelta, signal, extraContext, stream: true });
   }
 
   // 把联网资料作为一条临时 system 消息，插在最后一条用户消息之前；不改动传入的 messages。
