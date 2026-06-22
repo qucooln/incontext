@@ -5,6 +5,26 @@
   let btn = null;
   let lastSelectionText = "";
 
+  // 扩展被重载后，本页旧脚本会与扩展上下文断联，chrome.runtime.id 变 undefined。
+  function alive() {
+    try {
+      return !!chrome.runtime?.id;
+    } catch {
+      return false;
+    }
+  }
+
+  // 安全发送：上下文失效或异常时不抛红，吞掉 lastError。
+  function safeSend(message) {
+    if (!alive()) return false;
+    try {
+      chrome.runtime.sendMessage(message, () => void chrome.runtime.lastError);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   function removeBtn() {
     if (btn) {
       btn.remove();
@@ -63,8 +83,17 @@
   }
 
   function sendExplain(selectionText, range) {
+    if (!alive()) {
+      // 扩展刚更新、本页未刷新：给个温和提示而非报红崩溃
+      if (btn) {
+        btn.textContent = "插件已更新，请刷新本页";
+        btn.style.background = "#b45309";
+        setTimeout(removeBtn, 2500);
+      }
+      return;
+    }
     const payload = buildPayload(selectionText, range);
-    chrome.runtime.sendMessage({ type: "EXPLAIN", payload });
+    safeSend({ type: "EXPLAIN", payload });
     removeBtn();
   }
 
@@ -117,7 +146,7 @@
         const payload = range
           ? buildPayload(text, range)
           : { selection: text, before: "", after: "", ...extractArticle(), url: location.href, ts: Date.now() };
-        chrome.runtime.sendMessage({ type: "EXPLAIN", payload });
+        safeSend({ type: "EXPLAIN", payload });
         sendResponse({ ok: true });
       } else {
         sendResponse({ ok: false, reason: "no-selection" });
