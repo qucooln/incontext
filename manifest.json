@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "InContext — 划词释义（基于全文理解）",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "划选网页中的任意一段，基于大模型对整篇文章的理解给出解释，并可就这段多轮追问。Explain any selection — grounded in the whole page, not just the snippet.",
-  "permissions": ["activeTab", "scripting", "storage", "sidePanel", "contextMenus"],
+  "permissions": ["storage", "sidePanel", "contextMenus"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "src/background.js",
