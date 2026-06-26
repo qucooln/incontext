@@ -22,7 +22,7 @@ InContext is different: it first extracts the WHOLE article (via Mozilla Readabi
 ★ Multi‑turn — keep asking follow‑up questions about the same passage.
 ★ Any language — explain in Chinese, English, Japanese, and more.
 ★ Cited web search (optional) — a search engine fetches live facts and your model writes the answer with [n] cited sources. Context‑aware, bilingual queries that disambiguate homonyms.
-★ 15+ AI providers, Bring Your Own Key — DeepSeek, GLM, Kimi, Qwen, Doubao, OpenAI, Gemini, Anthropic Claude, Grok, Mistral, Groq, OpenRouter, SiliconFlow… Keys are stored locally in your browser and never sent to any third party.
+★ Works with any OpenAI-compatible model service, plus native Anthropic — Bring Your Own Key. Keys are stored locally in your browser and never sent to any third party.
 ★ Per‑tab conversations — each tab keeps its own thread; switching tabs never interrupts a running explanation.
 
 Privacy: InContext has no backend. Your API keys and conversations stay in your browser. Page text is sent only to the model endpoint you configure yourself.
@@ -43,7 +43,7 @@ InContext 不一样：先用 Readability 抽取【整篇文章】喂给模型做
 ★ 三步式解释：术语释义 → 全文语境 → 必要时举例
 ★ 多轮追问、多语种输出
 ★ 可选联网：搜索引擎取数、你的模型作答并标注 [n] 来源；检索词结合上下文、中英双语、自动消歧
-★ 15+ 模型，自带 key：DeepSeek/GLM/Kimi/通义/豆包/OpenAI/Gemini/Claude/Grok… key 仅存本地，不传第三方
+★ 兼容任意 OpenAI 格式的大模型服务，并支持 Anthropic 原生接口，自带 key（BYOK）；key 仅存本地，不传第三方
 ★ 按标签页独立对话，切换不打断
 隐私：无后端，key 与对话只存在你浏览器，正文只发往你自己配置的模型接口。
 开源(MIT)：https://github.com/qucooln/incontext
