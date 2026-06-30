@@ -37,14 +37,14 @@ Most "explain / translate selection" extensions send **only the highlighted snip
 
 ## Install
 
+### Chrome Web Store (recommended)
+**[➕ Add to Chrome](https://chromewebstore.google.com/detail/incontext/kgafinomgkgjedolciacaclobeodfkei)** — one click, then open the side panel → ⚙ → choose a provider and paste your API key.
+
 ### From source (developer mode)
 1. Download / clone this repo.
 2. Open `chrome://extensions`, turn on **Developer mode**.
 3. Click **Load unpacked**, pick the project folder (the one with `manifest.json`).
 4. Pin the icon. Open the side panel → ⚙ → choose a provider and paste your API key.
-
-### Chrome Web Store
-_Coming soon — link will appear here._
 
 ## Usage
 
@@ -115,13 +115,14 @@ MIT
 
 ## 安装
 
-**开发者模式加载：**
+**Chrome 应用商店（推荐）：**
+**[➕ 一键添加到 Chrome](https://chromewebstore.google.com/detail/incontext/kgafinomgkgjedolciacaclobeodfkei)** —— 装好后开侧栏 → ⚙ → 选服务商、填你的 API Key。
+
+**开发者模式加载（备选）：**
 1. 下载/克隆本仓库。
 2. 打开 `chrome://extensions`，开启**开发者模式**。
 3. 点**加载已解压的扩展程序**，选含 `manifest.json` 的文件夹。
 4. 固定图标。开侧栏 → ⚙ → 选服务商、填你的 API Key。
-
-**Chrome 应用商店：** 即将上架。
 
 ## 用法
 
